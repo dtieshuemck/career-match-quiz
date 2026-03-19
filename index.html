@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Career Match Quiz</title>
+
+  <!-- Tailwind CSS Play CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <style>
+    * { font-family: 'Inter', system-ui, sans-serif; box-sizing: border-box; }
+    body { background: #080815; margin: 0; padding: 0; }
+
+    @keyframes slideInRight  { from { transform: translateX(80px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    @keyframes slideOutLeft  { from { transform: translateX(0); opacity: 1; } to { transform: translateX(-80px); opacity: 0; } }
+    @keyframes fadeUp        { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    @keyframes spin          { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    @keyframes spinReverse   { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
+    @keyframes glowPulse     { 0%,100% { box-shadow: 0 0 30px rgba(99,102,241,.25); } 50% { box-shadow: 0 0 60px rgba(99,102,241,.55); } }
+    @keyframes shimmer       { from { background-position: -200% center; } to { background-position: 200% center; } }
+
+    .slide-in  { animation: slideInRight .32s cubic-bezier(.25,.8,.25,1) forwards; }
+    .slide-out { animation: slideOutLeft .28s cubic-bezier(.25,.8,.25,1) forwards; }
+    .fade-up   { animation: fadeUp .5s cubic-bezier(.25,.8,.25,1) forwards; }
+    .spin-cw   { animation: spin .9s linear infinite; }
+    .spin-ccw  { animation: spinReverse .65s linear infinite; }
+    .glow-card { animation: glowPulse 2.5s ease-in-out infinite; }
+
+    .glass {
+      background: rgba(255,255,255,.04);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,.08);
+    }
+    .glass-strong {
+      background: rgba(99,102,241,.12);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(99,102,241,.35);
+    }
+
+    .grad-text {
+      background: linear-gradient(135deg, #a5b4fc 0%, #60a5fa 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .grad-btn {
+      background: linear-gradient(135deg, #6366f1 0%, #3b82f6 100%);
+      box-shadow: 0 4px 24px rgba(99,102,241,.45);
+      transition: transform .15s, box-shadow .15s;
+    }
+    .grad-btn:hover  { transform: translateY(-2px) scale(1.02); box-shadow: 0 8px 32px rgba(99,102,241,.6); }
+    .grad-btn:active { transform: scale(.97); }
+
+    .answer-btn {
+      background: rgba(255,255,255,.03);
+      border: 1px solid rgba(255,255,255,.09);
+      transition: background .18s, border-color .18s, transform .12s;
+      cursor: pointer;
+    }
+    .answer-btn:hover:not(.locked) {
+      background: rgba(99,102,241,.12);
+      border-color: rgba(99,102,241,.4);
+      transform: translateX(4px);
+    }
+    .answer-btn.selected {
+      background: rgba(99,102,241,.2);
+      border-color: #6366f1;
+    }
+    .answer-btn.dimmed { opacity: .3; cursor: default; }
+
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(99,102,241,.3); border-radius: 3px; }
+
+    .orb {
+      position: fixed; border-radius: 50%; pointer-events: none;
+      background: radial-gradient(circle, var(--c) 0%, transparent 70%);
+    }
+  </style>
+</head>
+<body class="text-white min-h-screen">
+  <div id="root"></div>
+
+  <!-- React 18 + ReactDOM -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <!-- Babel standalone for JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    /* ================================================================
+       DIMENSIONS
+       Index: 0=Analytical  1=Creative  2=Social   3=Leadership
+              4=Structured  5=Entrepreneurial  6=Empathetic  7=Technical
+    ================================================================ */
+
+    /* ================================================================
+       QUESTIONS  (25 total — Personality×6, Preferences×6, Intellectual×7, Social×6)
+    ================================================================ */
+    const QUESTIONS = [
+      // ─── PERSONALITY ───────────────────────────────────────────
+      { id:1, cat:'Personality',
+        text:'When starting a new project, you prefer to:',
+        answers:[
+          { text:'Plan everything meticulously before beginning',     d:[1,0,0,0,3,0,0,0] },
+          { text:'Dive in and figure it out as you go',               d:[0,1,0,0,0,3,0,0] },
+          { text:'Get team input and build consensus first',          d:[0,0,2,1,0,0,1,0] },
+          { text:'Research and analyze deeply before acting',         d:[3,0,0,0,1,0,0,1] },
+        ]},
+      { id:2, cat:'Personality',
+        text:'You are most motivated by:',
+        answers:[
+          { text:'Solving complex, analytical problems',              d:[3,0,0,0,0,0,0,2] },
+          { text:'Creating something new and innovative',             d:[0,3,0,0,0,2,0,0] },
+          { text:'Leading and inspiring others',                      d:[0,0,1,3,0,0,1,0] },
+          { text:'Making a genuine positive impact on people',        d:[0,0,1,0,0,0,3,1] },
+        ]},
+      { id:3, cat:'Personality',
+        text:'When facing a serious setback, you typically:',
+        answers:[
+          { text:'Analyze what went wrong and build a better plan',   d:[3,0,0,0,1,0,0,0] },
+          { text:'Pivot quickly and try an entirely different angle',  d:[0,2,0,0,0,3,0,0] },
+          { text:'Seek advice and support from people around you',    d:[0,0,2,0,0,0,3,0] },
+          { text:'Follow protocol and carefully document learnings',  d:[0,0,0,0,3,0,0,2] },
+        ]},
+      { id:4, cat:'Personality',
+        text:'Your ideal vision of career success is:',
+        answers:[
+          { text:'Becoming the world\'s top expert in your field',    d:[3,0,0,0,0,0,0,2] },
+          { text:'Building your own company from scratch',            d:[0,2,0,2,0,3,0,0] },
+          { text:'Rising to the C-suite of a major organization',     d:[2,0,1,3,1,0,0,0] },
+          { text:'Creating lasting change in your community',         d:[0,1,2,1,0,0,3,0] },
+        ]},
+      { id:5, cat:'Personality',
+        text:'When making a major decision, you rely on:',
+        answers:[
+          { text:'Data, models, and hard evidence',                   d:[3,0,0,0,1,0,0,1] },
+          { text:'Intuition and creative leaps',                      d:[0,3,0,0,0,2,0,0] },
+          { text:'Input from trusted people in your circle',          d:[0,0,2,1,0,0,2,0] },
+          { text:'Established rules and proven best practices',       d:[1,0,0,0,3,0,0,0] },
+        ]},
+      { id:6, cat:'Personality',
+        text:'Your closest friends would describe you as:',
+        answers:[
+          { text:'The analytical, strategic thinker',                 d:[3,0,0,1,1,0,0,0] },
+          { text:'The creative, visionary dreamer',                   d:[0,3,0,0,0,2,0,0] },
+          { text:'The warm, empathetic heart of the group',           d:[0,0,2,0,0,0,3,0] },
+          { text:'The logical, technical problem-solver',             d:[2,0,0,0,1,0,0,3] },
+        ]},
+
+      // ─── PREFERENCES ───────────────────────────────────────────
+      { id:7, cat:'Preferences',
+        text:'Your ideal work environment is:',
+        answers:[
+          { text:'A quiet, focused space to concentrate alone',       d:[2,0,0,0,1,0,0,2] },
+          { text:'A buzzing, collaborative open-plan office',         d:[0,1,3,1,0,0,1,0] },
+          { text:'A structured corporate setting with clear hierarchy',d:[0,0,0,2,3,0,0,0] },
+          { text:'A fast-paced startup with flat structure and autonomy',d:[0,2,0,1,0,3,0,0] },
+        ]},
+      { id:8, cat:'Preferences',
+        text:'What matters most to you in a career?',
+        answers:[
+          { text:'High compensation and financial rewards',           d:[1,0,0,2,1,1,0,0] },
+          { text:'Making a positive difference in the world',         d:[0,0,1,0,0,0,3,1] },
+          { text:'Intellectual challenge and continuous growth',      d:[3,1,0,0,0,0,0,1] },
+          { text:'Autonomy and building something of your own',       d:[0,1,0,1,0,3,0,0] },
+        ]},
+      { id:9, cat:'Preferences',
+        text:'How much do you want to travel for work?',
+        answers:[
+          { text:'Love it — frequent travel energizes me',            d:[0,1,2,1,0,1,0,0] },
+          { text:'Occasional trips are fine',                         d:[0,0,1,0,1,0,1,0] },
+          { text:'I prefer to stay close to home',                    d:[0,0,0,0,2,0,2,0] },
+          { text:'Remote and flexible is the dream',                  d:[0,1,0,0,0,3,0,1] },
+        ]},
+      { id:10, cat:'Preferences',
+        text:'What industry excites you most?',
+        answers:[
+          { text:'Finance, consulting, or business strategy',         d:[2,0,1,2,1,0,0,0] },
+          { text:'Technology, engineering, or science',               d:[2,1,0,0,0,1,0,3] },
+          { text:'Healthcare, education, or social impact',           d:[0,0,1,0,1,0,3,1] },
+          { text:'Media, design, or entertainment',                   d:[0,3,2,0,0,1,1,0] },
+        ]},
+      { id:11, cat:'Preferences',
+        text:'Your preferred work schedule is:',
+        answers:[
+          { text:'Standard hours with strict work-life balance',      d:[0,0,0,0,3,0,1,0] },
+          { text:'Long hours when the project demands it',            d:[2,0,0,1,0,0,0,1] },
+          { text:'Flexible and results-focused, not clock-based',     d:[0,1,0,0,0,3,0,0] },
+          { text:'Unpredictable — I thrive under pressure and urgency',d:[0,0,0,2,0,2,0,1] },
+        ]},
+      { id:12, cat:'Preferences',
+        text:'Your biggest workplace pet peeve is:',
+        answers:[
+          { text:'Lack of structure and unclear direction',           d:[0,0,0,0,3,0,0,1] },
+          { text:'Too many rules and bureaucracy',                    d:[0,2,0,0,0,3,0,0] },
+          { text:'Working alone without any collaboration',           d:[0,0,3,0,0,0,2,0] },
+          { text:'Slow pace and unchallenging work',                  d:[2,1,0,0,0,1,0,2] },
+        ]},
+
+      // ─── INTELLECTUAL ──────────────────────────────────────────
+      { id:13, cat:'Intellectual',
+        text:"You're handed a complex dataset. You:",
+        answers:[
+          { text:'Build a model to find patterns and predict outcomes',d:[3,0,0,0,1,0,0,2] },
+          { text:'Craft a visual story to communicate the insights',   d:[1,3,1,0,0,0,0,0] },
+          { text:'Collaborate with teammates to interpret the meaning',d:[0,0,2,1,0,0,1,0] },
+          { text:'Apply a proven framework to structure the analysis', d:[1,0,0,0,3,0,0,1] },
+        ]},
+      { id:14, cat:'Intellectual',
+        text:'Faced with a problem you\'ve never seen before, you:',
+        answers:[
+          { text:'Decompose it logically, step by step',              d:[3,0,0,0,2,0,0,0] },
+          { text:'Brainstorm wildly then filter to the best idea',     d:[0,3,0,0,0,2,0,0] },
+          { text:'Ask experts and research similar past cases',        d:[1,0,1,0,1,0,1,0] },
+          { text:'Experiment and iterate rapidly',                     d:[0,1,0,0,0,2,0,3] },
+        ]},
+      { id:15, cat:'Intellectual',
+        text:"What's your honest relationship with math and numbers?",
+        answers:[
+          { text:"Love it — numbers don't lie",                        d:[3,0,0,0,0,0,0,2] },
+          { text:'Useful tool I reach for when needed',               d:[1,0,0,0,2,0,0,1] },
+          { text:'I prefer words, people, and ideas',                 d:[0,2,2,0,0,0,1,0] },
+          { text:'I code or build things with it',                    d:[2,0,0,0,1,0,0,3] },
+        ]},
+      { id:16, cat:'Intellectual',
+        text:'When learning something completely new, you prefer:',
+        answers:[
+          { text:'Reading textbooks, docs, and theory first',         d:[2,0,0,0,2,0,0,1] },
+          { text:'Jumping in and learning by doing',                  d:[0,1,0,0,0,3,0,1] },
+          { text:'Taking a guided course with an instructor',         d:[0,0,2,0,1,0,1,0] },
+          { text:'Building a project that forces you to learn',       d:[0,1,0,0,0,2,0,3] },
+        ]},
+      { id:17, cat:'Intellectual',
+        text:'A classic logic puzzle is placed in front of you. You:',
+        answers:[
+          { text:'Solve it systematically with clean logical steps',  d:[3,0,0,0,2,0,0,0] },
+          { text:'Hunt for an unconventional shortcut',               d:[1,3,0,0,0,2,0,0] },
+          { text:'Work through it aloud with someone else',           d:[0,0,2,0,0,0,1,0] },
+          { text:'Write a script or tool to brute-force it',          d:[2,0,0,0,1,0,0,3] },
+        ]},
+      { id:18, cat:'Intellectual',
+        text:'What do you most enjoy reading or watching?',
+        answers:[
+          { text:'Finance, markets, and business strategy',           d:[2,0,0,1,0,1,0,0] },
+          { text:'Sci-fi, design trends, and innovation',             d:[0,3,0,0,0,1,0,1] },
+          { text:'Documentaries about people, society, or nature',    d:[0,0,1,0,0,0,3,0] },
+          { text:'Biographies of entrepreneurs and visionaries',      d:[0,1,0,2,0,3,0,0] },
+        ]},
+      { id:19, cat:'Intellectual',
+        text:'Given a full week of free time, you would most naturally:',
+        answers:[
+          { text:'Build or code a side project',                      d:[1,1,0,0,0,2,0,3] },
+          { text:'Research and write deeply about something',         d:[3,1,0,0,1,0,0,0] },
+          { text:'Volunteer or help your community',                  d:[0,0,2,0,0,0,3,0] },
+          { text:'Network, travel, and pursue new opportunities',     d:[0,0,2,2,0,2,0,0] },
+        ]},
+
+      // ─── SOCIAL ────────────────────────────────────────────────
+      { id:20, cat:'Social',
+        text:'At a large party or networking event, you:',
+        answers:[
+          { text:'Work the entire room — you know everyone by the end',d:[0,0,3,2,0,1,0,0] },
+          { text:'Find one or two people for a deep, meaningful chat', d:[0,0,1,0,0,0,3,0] },
+          { text:'Feel energized and make new connections easily',     d:[0,0,3,1,0,0,1,0] },
+          { text:'Feel drained and prefer a quieter setting',         d:[2,0,0,0,1,0,0,2] },
+        ]},
+      { id:21, cat:'Social',
+        text:'In a group project, you naturally:',
+        answers:[
+          { text:'Take charge, organize the team, and drive execution',d:[0,0,1,3,1,0,0,0] },
+          { text:'Do the deep analytical or technical work solo',      d:[2,0,0,0,1,0,0,2] },
+          { text:'Bridge gaps, manage relationships, and support people',d:[0,0,2,0,0,0,3,0] },
+          { text:'Generate creative ideas and set the vision',         d:[0,3,0,1,0,2,0,0] },
+        ]},
+      { id:22, cat:'Social',
+        text:'How important is it to manage or mentor others in your career?',
+        answers:[
+          { text:'Very — I want to lead a large team',                d:[0,0,1,3,0,0,1,0] },
+          { text:"Somewhat — I'll mentor but mostly stay individual",  d:[0,0,1,0,0,0,2,1] },
+          { text:'Not really — individual contribution is my strength',d:[2,0,0,0,1,0,0,3] },
+          { text:'I want to inspire others through my results',        d:[1,0,0,2,0,2,0,0] },
+        ]},
+      { id:23, cat:'Social',
+        text:'Your ideal client or stakeholder relationship is:',
+        answers:[
+          { text:'Long-term strategic partnerships',                  d:[1,0,2,2,0,0,1,0] },
+          { text:'Professional, transactional, and efficient',        d:[1,0,0,0,3,0,0,1] },
+          { text:'Deep, personal, trust-based bonds',                 d:[0,0,2,0,0,0,3,0] },
+          { text:'Minimal — I prefer internal-facing work',           d:[2,1,0,0,1,0,0,2] },
+        ]},
+      { id:24, cat:'Social',
+        text:'When someone strongly disagrees with you, you:',
+        answers:[
+          { text:'Debate with logic, data, and clear evidence',       d:[3,0,0,1,0,0,0,0] },
+          { text:'Seek common ground and a workable compromise',      d:[0,0,2,0,0,0,3,0] },
+          { text:'Listen openly and genuinely consider their view',   d:[0,0,1,0,0,0,2,0] },
+          { text:'Stand firm — you back yourself completely',         d:[0,0,0,2,0,3,0,0] },
+        ]},
+      { id:25, cat:'Social',
+        text:'Ultimately, the legacy you want to leave behind is:',
+        answers:[
+          { text:'Groundbreaking discoveries or technological leaps', d:[2,2,0,0,0,2,0,2] },
+          { text:'A thriving organization you built from zero',       d:[0,1,0,2,0,3,0,0] },
+          { text:'Lives you improved and people you genuinely helped',d:[0,0,1,1,0,0,3,0] },
+          { text:'Systems and institutions that outlast you',         d:[1,0,0,2,2,0,1,0] },
+        ]},
+    ];
+
+    /* ================================================================
+       JOBS  (58 real careers)
+       vector: [Analytical, Creative, Social, Leadership,
+                Structured, Entrepreneurial, Empathetic, Technical]
+    ================================================================ */
+    const JOBS = [
+      // FINANCE
+      { id:'investment_banker',   title:'Investment Banker',        cat:'finance',        emoji:'💹', desc:'Structure and execute high-stakes M&A, IPO, and capital markets transactions for major corporations.', v:[10,2,6,7,8,4,2,3] },
+      { id:'hedge_fund_manager',  title:'Hedge Fund Manager',       cat:'finance',        emoji:'📈', desc:'Run sophisticated multi-strategy investment portfolios to generate alpha for institutional clients.', v:[10,3,3,8,5,8,1,5] },
+      { id:'financial_analyst',   title:'Financial Analyst',        cat:'finance',        emoji:'📊', desc:'Model financial performance, evaluate investments, and guide data-driven business decisions.', v:[9,2,3,4,8,3,2,4] },
+      { id:'venture_capitalist',  title:'Venture Capitalist',       cat:'finance',        emoji:'🚀', desc:'Identify and fund the next generation of breakthrough startups across consumer, enterprise, and deep tech.', v:[8,5,7,8,3,10,3,4] },
+      { id:'private_equity',      title:'Private Equity Analyst',   cat:'finance',        emoji:'🏢', desc:'Acquire, optimize, and grow private companies through operational improvements and strategic repositioning.', v:[10,2,4,6,8,5,1,3] },
+      { id:'actuary',             title:'Actuary',                  cat:'finance',        emoji:'🧮', desc:'Use advanced statistics and probability to model financial risk for insurance and pension institutions.', v:[10,2,2,3,9,2,2,6] },
+      { id:'cpa',                 title:'CPA / Accountant',         cat:'finance',        emoji:'📋', desc:'Ensure financial compliance, audit corporate books, and deliver tax strategy for businesses and individuals.', v:[8,1,3,4,10,2,3,3] },
+      { id:'wealth_manager',      title:'Investment Advisor',        cat:'finance',        emoji:'💰', desc:'Build long-term wealth strategies for high-net-worth clients through personalized portfolio management.', v:[8,4,7,5,6,5,6,3] },
+      { id:'re_developer',        title:'Real Estate Developer',    cat:'finance',        emoji:'🏗️', desc:'Identify, acquire, and transform land and buildings into high-value commercial and residential projects.', v:[7,6,6,7,5,8,3,4] },
+      { id:'re_broker',           title:'Commercial RE Broker',     cat:'finance',        emoji:'🏙️', desc:'Match businesses and investors with premium commercial properties across competitive urban markets.', v:[5,5,8,5,4,7,4,2] },
+
+      // TECHNOLOGY
+      { id:'software_engineer',   title:'Software Engineer',        cat:'tech',           emoji:'💻', desc:'Design and build the systems, applications, and infrastructure that power modern digital life.', v:[8,6,3,4,6,5,2,10] },
+      { id:'ml_engineer',         title:'ML / AI Engineer',         cat:'tech',           emoji:'🤖', desc:'Build AI and machine learning systems that learn from data to power intelligent products and decisions.', v:[10,5,2,3,5,4,1,10] },
+      { id:'product_manager',     title:'Product Manager',          cat:'tech',           emoji:'🗺️', desc:'Define product vision, align engineering and design, and ship features that users genuinely love.', v:[7,7,7,8,5,7,6,5] },
+      { id:'ux_designer',         title:'UX / UI Designer',         cat:'tech',           emoji:'🎨', desc:'Craft beautiful, intuitive digital experiences that delight users and solve real, meaningful problems.', v:[4,10,6,4,5,5,8,5] },
+      { id:'data_scientist',      title:'Data Scientist',           cat:'tech',           emoji:'🔬', desc:'Extract meaning from complex datasets using statistics, ML models, and compelling data storytelling.', v:[10,5,3,4,6,4,2,9] },
+      { id:'devops',              title:'DevOps Engineer',          cat:'tech',           emoji:'⚙️', desc:'Build and maintain cloud infrastructure and CI/CD pipelines that keep software running reliably at scale.', v:[6,4,3,4,8,4,2,10] },
+      { id:'cybersecurity',       title:'Cybersecurity Analyst',    cat:'tech',           emoji:'🔒', desc:'Protect organizations from digital threats by hunting vulnerabilities and building robust security systems.', v:[8,4,2,3,8,4,2,10] },
+      { id:'cto',                 title:'Chief Technology Officer', cat:'tech',           emoji:'🖥️', desc:'Set technical vision and lead engineering teams to build transformative technology at scale.', v:[8,7,6,10,5,8,5,9] },
+      { id:'startup_founder',     title:'Startup Founder / CEO',    cat:'tech',           emoji:'⚡', desc:'Build a company from idea to product-market fit, leading every aspect of growth and culture.', v:[6,8,7,10,3,10,6,5] },
+
+      // CONSULTING & STRATEGY
+      { id:'mgmt_consultant',     title:'Management Consultant',    cat:'consulting',     emoji:'📌', desc:'Solve complex strategic and operational challenges for Fortune 500 companies and governments worldwide.', v:[9,6,7,7,7,5,5,4] },
+      { id:'strategy_consultant', title:'Strategy Consultant',      cat:'consulting',     emoji:'♟️', desc:'Advise CEOs and boards on corporate strategy, market entry, M&A, and competitive positioning.', v:[9,7,6,8,6,6,4,4] },
+      { id:'ops_manager',         title:'Operations Manager',       cat:'consulting',     emoji:'🏭', desc:'Streamline business processes, eliminate waste, and build systems that scale with efficiency.', v:[7,4,6,7,8,4,5,4] },
+      { id:'supply_chain',        title:'Supply Chain Manager',     cat:'consulting',     emoji:'🔗', desc:'Orchestrate global logistics networks to deliver goods faster, cheaper, and more reliably.', v:[7,3,5,6,9,4,3,5] },
+      { id:'biz_dev',             title:'Business Development Mgr', cat:'consulting',     emoji:'🤝', desc:'Identify growth opportunities, forge strategic partnerships, and expand commercial footprints.', v:[6,6,8,7,4,7,5,2] },
+
+      // HEALTHCARE
+      { id:'surgeon',             title:'Surgeon',                  cat:'healthcare',     emoji:'🔪', desc:'Perform life-saving and complex surgical procedures requiring extraordinary precision and composure.', v:[8,4,4,7,8,3,6,9] },
+      { id:'physician',           title:'Physician / Doctor',       cat:'healthcare',     emoji:'🩺', desc:'Diagnose and treat patients while building lasting relationships and improving lives every single day.', v:[8,3,6,5,7,3,8,7] },
+      { id:'nurse',               title:'Nurse',                    cat:'healthcare',     emoji:'💊', desc:'Deliver compassionate, precision-driven hands-on patient care across diverse clinical settings.', v:[5,2,7,4,7,2,10,5] },
+      { id:'therapist',           title:'Therapist / Psychologist', cat:'healthcare',     emoji:'🧠', desc:'Help individuals overcome mental health challenges and build resilience through evidence-based therapy.', v:[6,5,7,4,5,3,10,2] },
+      { id:'pharmacist',          title:'Pharmacist',               cat:'healthcare',     emoji:'💉', desc:'Ensure safe and effective medication use while counseling patients and supporting clinical care teams.', v:[7,2,5,4,9,2,7,6] },
+      { id:'medical_researcher',  title:'Medical Researcher',       cat:'healthcare',     emoji:'🧬', desc:'Advance the frontier of medicine through clinical trials, laboratory research, and scientific publication.', v:[10,5,2,4,7,4,5,8] },
+      { id:'biomedical_eng',      title:'Biomedical Engineer',      cat:'healthcare',     emoji:'🦾', desc:'Design medical devices, diagnostics, and therapeutic technologies that genuinely save and enhance lives.', v:[8,6,3,4,7,4,5,9] },
+      { id:'social_worker',       title:'Social Worker',            cat:'healthcare',     emoji:'🤲', desc:'Support vulnerable individuals and families through crisis intervention and community resource navigation.', v:[4,4,8,4,6,3,10,2] },
+
+      // LAW
+      { id:'lawyer',              title:'Lawyer / Attorney',        cat:'law',            emoji:'⚖️', desc:'Advocate for clients, navigate complex legal frameworks, and shape outcomes in business, crime, and policy.', v:[9,5,6,6,9,4,5,3] },
+      { id:'judge',               title:'Judge',                    cat:'law',            emoji:'🔨', desc:'Interpret and apply the law with impartiality and rigorous intellectual discipline in courtroom proceedings.', v:[9,3,4,7,10,2,5,2] },
+      { id:'public_defender',     title:'Public Defender',          cat:'law',            emoji:'🛡️', desc:'Provide vigorous legal defense to individuals who cannot afford private counsel — a calling, not just a job.', v:[7,5,7,5,7,4,8,2] },
+
+      // EDUCATION
+      { id:'professor',           title:'Professor / Academic',     cat:'education',      emoji:'🎓', desc:'Advance human knowledge through research and teach the next generation at a leading university.', v:[9,6,5,5,6,4,6,6] },
+      { id:'teacher',             title:'K–12 Teacher',             cat:'education',      emoji:'✏️', desc:'Shape young minds, ignite curiosity, and build foundational knowledge for generations to come.', v:[5,7,8,5,6,3,9,2] },
+      { id:'principal',           title:'School Principal',         cat:'education',      emoji:'🏫', desc:'Lead an entire school community, support teachers, and champion every student\'s success.', v:[6,5,8,8,7,4,8,2] },
+
+      // MEDIA & CREATIVE
+      { id:'journalist',          title:'Journalist / Reporter',    cat:'media',          emoji:'📰', desc:'Investigate stories, hold power accountable, and inform the public through compelling, rigorous reporting.', v:[5,8,7,4,4,6,7,2] },
+      { id:'film_director',       title:'Film Director',            cat:'media',          emoji:'🎬', desc:'Bring stories to life on screen with creative vision, emotional depth, and technical mastery.', v:[5,10,6,8,4,7,7,5] },
+      { id:'graphic_designer',    title:'Graphic Designer',         cat:'media',          emoji:'🖌️', desc:'Create visual identities, campaigns, and immersive experiences that communicate and captivate.', v:[3,10,4,3,5,5,5,5] },
+      { id:'marketing_manager',   title:'Marketing Manager',        cat:'media',          emoji:'📣', desc:'Build brands, launch campaigns, and drive growth through creative strategy and data-driven insights.', v:[6,8,7,6,5,6,5,3] },
+      { id:'social_media_mgr',    title:'Social Media Manager',     cat:'media',          emoji:'📱', desc:'Grow audiences, build vibrant communities, and tell brand stories across digital platforms.', v:[4,8,9,4,4,6,6,3] },
+      { id:'ad_executive',        title:'Advertising Executive',    cat:'media',          emoji:'📺', desc:'Create and sell award-winning campaigns that shape culture and move billions of consumers.', v:[6,9,8,7,4,7,5,2] },
+      { id:'sports_agent',        title:'Sports Agent',             cat:'media',          emoji:'🏆', desc:'Negotiate multi-million dollar contracts and manage the careers of elite professional athletes.', v:[5,6,9,6,4,7,5,2] },
+
+      // ENGINEERING & SCIENCE
+      { id:'civil_engineer',      title:'Civil Engineer',           cat:'engineering',    emoji:'🌉', desc:'Design and build the bridges, roads, and water systems that form the backbone of civilization.', v:[8,5,4,5,8,3,3,9] },
+      { id:'aerospace_engineer',  title:'Aerospace Engineer',       cat:'engineering',    emoji:'🛸', desc:'Design aircraft, spacecraft, and propulsion systems that push the frontier of what humans can achieve.', v:[9,6,3,5,8,5,2,10] },
+      { id:'env_scientist',       title:'Environmental Scientist',  cat:'engineering',    emoji:'🌍', desc:'Study and solve pressing environmental challenges from climate change to water quality and biodiversity.', v:[8,5,4,4,7,4,6,7] },
+      { id:'nuclear_engineer',    title:'Nuclear Engineer',         cat:'engineering',    emoji:'⚛️', desc:'Harness nuclear reactions for clean energy production, medical imaging, and national defense applications.', v:[9,4,2,4,9,3,2,10] },
+      { id:'architect',           title:'Architect',                cat:'engineering',    emoji:'🏛️', desc:'Design buildings and spaces that balance aesthetic beauty, human function, and structural integrity.', v:[7,10,5,5,7,5,5,7] },
+
+      // GOVERNMENT & POLICY
+      { id:'politician',          title:'Politician / Elected Official', cat:'government', emoji:'🏛️', desc:'Represent constituents, craft legislation, and shape public policy at local, state, or national level.', v:[5,6,10,9,4,6,7,2] },
+      { id:'diplomat',            title:'Diplomat / Foreign Service', cat:'government',   emoji:'🌐', desc:'Represent your nation abroad, negotiate treaties, and build relationships across cultures and continents.', v:[7,6,9,7,6,5,8,2] },
+      { id:'policy_analyst',      title:'Policy Analyst',           cat:'government',     emoji:'📜', desc:'Research and design evidence-based policies that address society\'s most complex, systemic challenges.', v:[9,5,5,5,7,4,6,3] },
+      { id:'military_officer',    title:'Military Officer',         cat:'government',     emoji:'🎖️', desc:'Lead soldiers, plan operations, and serve your nation with unwavering discipline, courage, and strategy.', v:[7,3,5,9,10,4,4,5] },
+      { id:'nonprofit_director',  title:'Nonprofit Director',       cat:'government',     emoji:'❤️', desc:'Lead a mission-driven organization delivering impactful programs that create lasting community change.', v:[6,6,8,8,6,5,10,3] },
+
+      // ENTREPRENEURSHIP
+      { id:'entrepreneur',        title:'Entrepreneur / Founder',   cat:'entrepreneurship', emoji:'💡', desc:'Turn bold ideas into real companies — shaping culture and creating value from absolutely nothing.', v:[6,8,7,10,3,10,5,5] },
+      { id:'ceo',                 title:'CEO (Large Corporation)',  cat:'entrepreneurship', emoji:'👔', desc:'Set the vision, inspire thousands of employees, and steer a major organization through growth and transformation.', v:[8,6,7,10,6,7,6,4] },
+    ];
+
+    /* ================================================================
+       CITIES  (20 US cities)
+    ================================================================ */
+    const CITIES = [
+      { id:'new_york',      name:'New York City',  state:'NY', emoji:'🗽', desc:'The financial and media capital of the world — electric, intense, and dripping with ambition.',         iw:{ finance:10,tech:7,healthcare:5,consulting:9,law:9,education:5,media:9,engineering:4,government:6,entrepreneurship:7 } },
+      { id:'san_francisco', name:'San Francisco',  state:'CA', emoji:'🌉', desc:'The global epicenter of tech innovation and startup culture — where the future is invented daily.',    iw:{ finance:5,tech:10,healthcare:4,consulting:6,law:4,education:5,media:7,engineering:9,government:3,entrepreneurship:10 } },
+      { id:'los_angeles',   name:'Los Angeles',    state:'CA', emoji:'🎬', desc:'Entertainment capital of the world with a booming tech and creative scene baking in year-round sun.',  iw:{ finance:5,tech:7,healthcare:5,consulting:4,law:6,education:5,media:10,engineering:5,government:5,entrepreneurship:8 } },
+      { id:'chicago',       name:'Chicago',        state:'IL', emoji:'🌆', desc:'The Midwest powerhouse of finance, consulting, law, and deep industrial might.',                       iw:{ finance:8,tech:6,healthcare:6,consulting:8,law:8,education:5,media:5,engineering:6,government:5,entrepreneurship:5 } },
+      { id:'washington_dc', name:'Washington, D.C.',state:'DC', emoji:'🏛️', desc:'The seat of American power — home to policy, diplomacy, law, and public service careers.',           iw:{ finance:4,tech:5,healthcare:5,consulting:8,law:8,education:7,media:6,engineering:4,government:10,entrepreneurship:4 } },
+      { id:'boston',        name:'Boston',         state:'MA', emoji:'🦞', desc:'A world-class hub for healthcare, biotech, education, and some of the sharpest intellectual minds.',   iw:{ finance:6,tech:7,healthcare:9,consulting:8,law:6,education:10,media:4,engineering:7,government:5,entrepreneurship:6 } },
+      { id:'seattle',       name:'Seattle',        state:'WA', emoji:'🌲', desc:'Home to Amazon, Microsoft, and Boeing — a rainy powerhouse of tech and aerospace engineering.',         iw:{ finance:4,tech:10,healthcare:5,consulting:5,law:3,education:4,media:5,engineering:10,government:3,entrepreneurship:8 } },
+      { id:'austin',        name:'Austin',         state:'TX', emoji:'🤠', desc:'The fastest-growing tech hub in America with a vibrant startup culture and legendary live music.',    iw:{ finance:4,tech:9,healthcare:4,consulting:5,law:4,education:4,media:5,engineering:7,government:4,entrepreneurship:9 } },
+      { id:'miami',         name:'Miami',          state:'FL', emoji:'🌴', desc:'A sun-drenched international hub of finance, crypto, Latin culture, and explosive entrepreneurship.',  iw:{ finance:7,tech:6,healthcare:5,consulting:5,law:6,education:4,media:7,engineering:3,government:4,entrepreneurship:8 } },
+      { id:'denver',        name:'Denver',         state:'CO', emoji:'🏔️', desc:'A fast-growing hub for tech, aerospace, outdoor industry, and Western entrepreneurial energy.',        iw:{ finance:4,tech:7,healthcare:5,consulting:5,law:4,education:4,media:4,engineering:7,government:5,entrepreneurship:7 } },
+      { id:'dallas',        name:'Dallas',         state:'TX', emoji:'⭐', desc:'A major center for finance, telecom, tech, and corporate headquarters anchoring the American South.',   iw:{ finance:6,tech:7,healthcare:6,consulting:6,law:6,education:4,media:4,engineering:7,government:4,entrepreneurship:6 } },
+      { id:'houston',       name:'Houston',        state:'TX', emoji:'🛢️', desc:'The energy capital of the world and a major center for aerospace and groundbreaking medical research.', iw:{ finance:5,tech:5,healthcare:6,consulting:5,law:5,education:4,media:3,engineering:9,government:4,entrepreneurship:5 } },
+      { id:'atlanta',       name:'Atlanta',        state:'GA', emoji:'🍑', desc:'A rapidly rising tech and media hub anchoring the Southeast economy and vibrant Black culture.',        iw:{ finance:5,tech:6,healthcare:6,consulting:6,law:5,education:5,media:6,engineering:5,government:5,entrepreneurship:6 } },
+      { id:'minneapolis',   name:'Minneapolis',    state:'MN', emoji:'❄️', desc:'A Fortune 500 powerhouse known for healthcare, retail innovation, and authentic Midwestern work ethic.',iw:{ finance:5,tech:5,healthcare:8,consulting:5,law:4,education:5,media:3,engineering:5,government:4,entrepreneurship:4 } },
+      { id:'philadelphia',  name:'Philadelphia',   state:'PA', emoji:'🔔', desc:'A major hub for healthcare, pharmaceuticals, law, and some of the nation\'s top universities.',        iw:{ finance:5,tech:5,healthcare:8,consulting:5,law:6,education:7,media:4,engineering:5,government:4,entrepreneurship:4 } },
+      { id:'nashville',     name:'Nashville',      state:'TN', emoji:'🎸', desc:'The Music City has evolved into a surprising hub for healthcare, media, and entrepreneurship.',        iw:{ finance:4,tech:5,healthcare:7,consulting:4,law:4,education:4,media:7,engineering:4,government:3,entrepreneurship:6 } },
+      { id:'san_diego',     name:'San Diego',      state:'CA', emoji:'🌊', desc:'A biotech and defense powerhouse on the Pacific coast with an exceptional quality of life.',           iw:{ finance:3,tech:6,healthcare:6,consulting:4,law:3,education:4,media:4,engineering:7,government:5,entrepreneurship:5 } },
+      { id:'portland',      name:'Portland',       state:'OR', emoji:'🌹', desc:'A creative, quirky hub for tech, design, sustainability, and fiercely independent entrepreneurship.',    iw:{ finance:3,tech:7,healthcare:4,consulting:4,law:3,education:4,media:5,engineering:6,government:3,entrepreneurship:7 } },
+      { id:'pittsburgh',    name:'Pittsburgh',     state:'PA', emoji:'🌉', desc:'A rising tech and AI hub built on a storied foundation of engineering and world-class universities.',    iw:{ finance:3,tech:5,healthcare:7,consulting:4,law:4,education:7,media:3,engineering:7,government:3,entrepreneurship:4 } },
+      { id:'raleigh',       name:'Raleigh',        state:'NC', emoji:'🌿', desc:'Research Triangle Park anchors a fast-growing tech, pharma, and education corridor in the Carolinas.',  iw:{ finance:3,tech:7,healthcare:6,consulting:4,law:3,education:7,media:3,engineering:6,government:4,entrepreneurship:5 } },
+    ];
+
+    /* ================================================================
+       COMPANIES  (~130 real companies mapped to city + category)
+    ================================================================ */
+    const COMPANIES = [
+      // FINANCE — New York
+      { id:'goldman',       name:'Goldman Sachs',             cityId:'new_york',      cat:'finance',        emoji:'🏦', desc:'Elite global investment bank and financial services powerhouse on Wall Street.' },
+      { id:'jpmorgan',      name:'JPMorgan Chase',            cityId:'new_york',      cat:'finance',        emoji:'🏦', desc:"The world's largest bank by market cap and a titan of investment banking." },
+      { id:'morgan_stanley',name:'Morgan Stanley',            cityId:'new_york',      cat:'finance',        emoji:'🏦', desc:'Global investment bank renowned for wealth management and capital markets excellence.' },
+      { id:'blackrock',     name:'BlackRock',                 cityId:'new_york',      cat:'finance',        emoji:'📊', desc:"The world's largest asset manager with over $10 trillion in AUM." },
+      { id:'citadel',       name:'Citadel',                   cityId:'new_york',      cat:'finance',        emoji:'⚡', desc:"One of the world's most powerful hedge funds and market-making firms." },
+      { id:'kkr',           name:'KKR & Co.',                 cityId:'new_york',      cat:'finance',        emoji:'🏢', desc:'Premier global investment firm in private equity, credit, and real assets.' },
+      { id:'blackstone',    name:'Blackstone',                cityId:'new_york',      cat:'finance',        emoji:'🏛️', desc:"World's largest alternative asset manager with over $1 trillion in AUM." },
+      { id:'bridgewater',   name:'Bridgewater Associates',    cityId:'new_york',      cat:'finance',        emoji:'🌊', desc:"The world's largest hedge fund, famous for radical transparency and macro investing." },
+      { id:'related',       name:'Related Companies',         cityId:'new_york',      cat:'finance',        emoji:'🏗️', desc:"NYC's premier real estate developer behind Hudson Yards and landmark projects." },
+      // FINANCE — Chicago
+      { id:'cme',           name:'CME Group',                 cityId:'chicago',       cat:'finance',        emoji:'📈', desc:"World's leading derivatives marketplace powering global financial markets." },
+      { id:'morningstar',   name:'Morningstar',               cityId:'chicago',       cat:'finance',        emoji:'⭐', desc:'Independent investment research and analytics trusted by investors worldwide.' },
+      { id:'northern_trust',name:'Northern Trust',            cityId:'chicago',       cat:'finance',        emoji:'🏦', desc:'Global financial services firm specializing in wealth management and institutional banking.' },
+      // FINANCE — Miami
+      { id:'carnival',      name:'Carnival Corporation',      cityId:'miami',         cat:'finance',        emoji:'🚢', desc:"World's largest cruise line operator with 100+ ships across 9 iconic brands." },
+      { id:'miami_finance', name:'Citi Private Bank Miami',   cityId:'miami',         cat:'finance',        emoji:'🌴', desc:'Serving ultra-high-net-worth clients across Latin America and the Caribbean.' },
+      // FINANCE — San Francisco
+      { id:'schwab',        name:'Charles Schwab',            cityId:'san_francisco', cat:'finance',        emoji:'📈', desc:'Leading discount brokerage and retail investment platform with $8T+ in AUM.' },
+      { id:'visa',          name:'Visa Inc.',                 cityId:'san_francisco', cat:'finance',        emoji:'💳', desc:"The world's largest payment network enabling $15 trillion in annual transactions." },
+      { id:'wells_fargo',   name:'Wells Fargo',               cityId:'san_francisco', cat:'finance',        emoji:'🏦', desc:'Major U.S. commercial and retail bank serving millions of consumer and business clients.' },
+      // FINANCE — Boston
+      { id:'fidelity',      name:'Fidelity Investments',      cityId:'boston',        cat:'finance',        emoji:'📊', desc:'One of the largest mutual fund and brokerage companies in the world.' },
+      { id:'state_street',  name:'State Street Corporation',  cityId:'boston',        cat:'finance',        emoji:'🏛️', desc:'Global financial services provider specializing in institutional asset management and custody.' },
+      // FINANCE — Dallas
+      { id:'comerica',      name:'Comerica Bank',             cityId:'dallas',        cat:'finance',        emoji:'🏦', desc:'Major commercial bank headquartered in Texas serving businesses across the U.S.' },
+
+      // TECHNOLOGY — San Francisco
+      { id:'google',        name:'Google',                    cityId:'san_francisco', cat:'tech',           emoji:'🔍', desc:"Moonshot factory and internet giant defining how the world accesses and understands information." },
+      { id:'meta',          name:'Meta',                      cityId:'san_francisco', cat:'tech',           emoji:'👓', desc:'Building the metaverse and connecting 3+ billion people through social platforms and AR.' },
+      { id:'salesforce',    name:'Salesforce',                cityId:'san_francisco', cat:'tech',           emoji:'☁️', desc:"World's #1 CRM platform powering enterprise sales, service, marketing, and commerce." },
+      { id:'uber',          name:'Uber',                      cityId:'san_francisco', cat:'tech',           emoji:'🚗', desc:'Redefining urban mobility and food delivery at massive scale across 70+ countries.' },
+      { id:'airbnb',        name:'Airbnb',                    cityId:'san_francisco', cat:'tech',           emoji:'🏠', desc:'Disrupting global hospitality by connecting hosts and travelers in 220+ countries.' },
+      { id:'stripe',        name:'Stripe',                    cityId:'san_francisco', cat:'tech',           emoji:'💳', desc:'Building the economic infrastructure of the internet for millions of businesses globally.' },
+      { id:'apple',         name:'Apple',                     cityId:'san_francisco', cat:'tech',           emoji:'🍎', desc:'Creating the most beloved consumer technology products and seamless digital ecosystems on Earth.' },
+      { id:'openai',        name:'OpenAI',                    cityId:'san_francisco', cat:'tech',           emoji:'🤖', desc:'Pioneering artificial general intelligence research to benefit all of humanity.' },
+      // TECHNOLOGY — Seattle
+      { id:'amazon',        name:'Amazon',                    cityId:'seattle',       cat:'tech',           emoji:'📦', desc:'E-commerce giant and cloud computing leader whose AWS powers the global digital economy.' },
+      { id:'microsoft',     name:'Microsoft',                 cityId:'seattle',       cat:'tech',           emoji:'🪟', desc:'Global technology leader in cloud, AI, productivity software, and gaming.' },
+      { id:'expedia',       name:'Expedia Group',             cityId:'seattle',       cat:'tech',           emoji:'✈️', desc:"World's largest online travel platform with Booking.com, Hotels.com, and more." },
+      // TECHNOLOGY — Austin
+      { id:'dell',          name:'Dell Technologies',         cityId:'austin',        cat:'tech',           emoji:'💻', desc:'Global leader in enterprise tech infrastructure, PCs, and storage solutions.' },
+      { id:'oracle_austin', name:'Oracle',                    cityId:'austin',        cat:'tech',           emoji:'🔴', desc:'Enterprise software titan with a dominant cloud database and ERP business.' },
+      { id:'tesla_austin',  name:'Tesla',                     cityId:'austin',        cat:'tech',           emoji:'⚡', desc:"World's leading electric vehicle and clean energy company, now headquartered in Austin." },
+      // TECHNOLOGY — New York
+      { id:'ibm',           name:'IBM',                       cityId:'new_york',      cat:'tech',           emoji:'💙', desc:'Technology and consulting giant with over a century of enterprise innovation and AI research.' },
+      { id:'spotify',       name:'Spotify',                   cityId:'new_york',      cat:'tech',           emoji:'🎵', desc:"World's most popular music streaming platform with 600M+ listeners globally." },
+      { id:'bloomberg',     name:'Bloomberg LP',              cityId:'new_york',      cat:'tech',           emoji:'📡', desc:'Financial technology and media company whose terminal powers global financial markets.' },
+      // TECHNOLOGY — Los Angeles
+      { id:'snap',          name:'Snap Inc.',                 cityId:'los_angeles',   cat:'tech',           emoji:'👻', desc:'Camera company building Snapchat and AR glasses for the next era of computing.' },
+      { id:'spacex',        name:'SpaceX',                    cityId:'los_angeles',   cat:'tech',           emoji:'🚀', desc:"Elon Musk's rocket company making humanity multiplanetary through reusable launch vehicles." },
+      // TECHNOLOGY — Raleigh
+      { id:'red_hat',       name:'Red Hat',                   cityId:'raleigh',       cat:'tech',           emoji:'🔴', desc:'World leader in open-source enterprise software and Linux, acquired by IBM.' },
+      { id:'cisco_rtp',     name:'Cisco (RTP Campus)',        cityId:'raleigh',       cat:'tech',           emoji:'🌐', desc:"Networking giant with a major R&D campus in North Carolina's Research Triangle Park." },
+
+      // CONSULTING — New York
+      { id:'mckinsey',      name:'McKinsey & Company',        cityId:'new_york',      cat:'consulting',     emoji:'♟️', desc:"World's most prestigious management consulting firm advising global leaders across every industry." },
+      { id:'bcg',           name:'Boston Consulting Group',   cityId:'new_york',      cat:'consulting',     emoji:'🔷', desc:'Global strategy consulting leader renowned for innovative problem-solving and client impact.' },
+      { id:'bain',          name:'Bain & Company',            cityId:'new_york',      cat:'consulting',     emoji:'🔶', desc:'Top management consulting firm known for private equity work and measurable results delivery.' },
+      { id:'deloitte',      name:'Deloitte',                  cityId:'new_york',      cat:'consulting',     emoji:'🟢', desc:"World's largest professional services firm across audit, tax, consulting, and advisory." },
+      { id:'pwc',           name:'PwC',                       cityId:'new_york',      cat:'consulting',     emoji:'🔴', desc:'Global leader in audit, tax, and advisory services for the world\'s major corporations.' },
+      // CONSULTING — DC
+      { id:'booz_allen',    name:'Booz Allen Hamilton',       cityId:'washington_dc', cat:'consulting',     emoji:'🛡️', desc:'Leading management and technology consulting firm solving critical U.S. government challenges.' },
+      { id:'leidos',        name:'Leidos',                    cityId:'washington_dc', cat:'consulting',     emoji:'⚙️', desc:'Defense and technology company tackling critical national security and intelligence challenges.' },
+      // CONSULTING — Chicago
+      { id:'accenture',     name:'Accenture',                 cityId:'chicago',       cat:'consulting',     emoji:'🔷', desc:'Global technology and consulting giant driving large-scale digital transformation worldwide.' },
+      { id:'kearney',       name:'Kearney',                   cityId:'chicago',       cat:'consulting',     emoji:'📐', desc:'Global management consulting firm with deep expertise in operations, strategy, and procurement.' },
+      // CONSULTING — Atlanta
+      { id:'ey_atl',        name:'EY Atlanta',                cityId:'atlanta',       cat:'consulting',     emoji:'🟡', desc:"Ernst & Young's growing Southeast hub for audit, tax, and advisory services." },
+
+      // HEALTHCARE — Boston
+      { id:'mgb',           name:'Mass General Brigham',      cityId:'boston',        cat:'healthcare',     emoji:'🏥', desc:'Harvard-affiliated health system and one of the world\'s leading research hospital networks.' },
+      { id:'biogen',        name:'Biogen',                    cityId:'boston',        cat:'healthcare',     emoji:'🧬', desc:'Pioneer in neuroscience research developing breakthrough treatments for devastating brain diseases.' },
+      { id:'moderna',       name:'Moderna',                   cityId:'boston',        cat:'healthcare',     emoji:'💉', desc:'mRNA biotech company behind the COVID vaccine and a new paradigm in medicine.' },
+      // HEALTHCARE — Philadelphia
+      { id:'penn_medicine', name:'Penn Medicine',             cityId:'philadelphia',  cat:'healthcare',     emoji:'🏥', desc:"One of the world's top academic medical centers pioneering cancer and gene therapy." },
+      { id:'chop',          name:"Children's Hospital of Philadelphia", cityId:'philadelphia', cat:'healthcare', emoji:'🩺', desc:"Consistently ranked among the world's best children's hospitals with pioneering pediatric research." },
+      // HEALTHCARE — Houston
+      { id:'md_anderson',   name:'MD Anderson Cancer Center', cityId:'houston',       cat:'healthcare',     emoji:'🎗️', desc:"World's #1 cancer treatment and research institution at the University of Texas." },
+      { id:'houston_method',name:'Houston Methodist',         cityId:'houston',       cat:'healthcare',     emoji:'🏥', desc:'Leading academic medical center in the Texas Medical Center, one of the world\'s largest.' },
+      // HEALTHCARE — Nashville
+      { id:'hca',           name:'HCA Healthcare',            cityId:'nashville',     cat:'healthcare',     emoji:'🏥', desc:"America's largest for-profit hospital operator with 180+ hospitals and 2,000+ care sites." },
+      // HEALTHCARE — Pittsburgh
+      { id:'upmc',          name:'UPMC',                      cityId:'pittsburgh',    cat:'healthcare',     emoji:'🏥', desc:'Academic medical center and insurance giant employing 90,000+ people across Pennsylvania.' },
+      // HEALTHCARE — Minneapolis
+      { id:'mayo_clinic',   name:'Mayo Clinic',               cityId:'minneapolis',   cat:'healthcare',     emoji:'⚕️', desc:"The world-renowned nonprofit medical center consistently ranked America's #1 hospital." },
+      { id:'allina',        name:'Allina Health',             cityId:'minneapolis',   cat:'healthcare',     emoji:'🏥', desc:'Nonprofit health system serving Minnesota and Western Wisconsin across 90+ clinics.' },
+      // HEALTHCARE — San Diego
+      { id:'scripps',       name:'Scripps Health',            cityId:'san_diego',     cat:'healthcare',     emoji:'🏥', desc:'Nonprofit health system and research institute serving 700,000+ San Diego patients annually.' },
+
+      // LAW — New York
+      { id:'skadden',       name:'Skadden Arps',              cityId:'new_york',      cat:'law',            emoji:'⚖️', desc:'One of the world\'s largest and most prestigious law firms dominating M&A and litigation.' },
+      { id:'wachtell',      name:'Wachtell Lipton',           cityId:'new_york',      cat:'law',            emoji:'⚖️', desc:"Most profitable law firm in the world, the undisputed leader in high-stakes M&A defense." },
+      { id:'sullivan',      name:'Sullivan & Cromwell',       cityId:'new_york',      cat:'law',            emoji:'⚖️', desc:'Elite Wall Street law firm renowned for M&A, securities law, and capital markets.' },
+      // LAW — DC
+      { id:'covington',     name:'Covington & Burling',       cityId:'washington_dc', cat:'law',            emoji:'⚖️', desc:'Top regulatory and litigation firm representing Fortune 500 companies and governments in D.C.' },
+      { id:'wilmerhale',    name:'WilmerHale',                cityId:'washington_dc', cat:'law',            emoji:'⚖️', desc:'Leading law firm at the powerful intersection of technology, securities law, and government.' },
+      // LAW — Chicago
+      { id:'kirkland',      name:'Kirkland & Ellis',          cityId:'chicago',       cat:'law',            emoji:'⚖️', desc:"The world's highest-grossing law firm, dominating private equity and leveraged buyout deals." },
+
+      // EDUCATION — Boston
+      { id:'harvard',       name:'Harvard University',        cityId:'boston',        cat:'education',      emoji:'🎓', desc:"The world's most prestigious university training leaders, researchers, and innovators." },
+      { id:'mit',           name:'MIT',                       cityId:'boston',        cat:'education',      emoji:'⚙️', desc:'World\'s leading technical university pioneering science, engineering, and entrepreneurship.' },
+      // EDUCATION — DC
+      { id:'georgetown',    name:'Georgetown University',     cityId:'washington_dc', cat:'education',      emoji:'🎓', desc:'Top research university globally recognized for diplomacy, international relations, and law.' },
+      // EDUCATION — Philadelphia
+      { id:'upenn',         name:'University of Pennsylvania', cityId:'philadelphia', cat:'education',      emoji:'🎓', desc:'Ivy League powerhouse with Wharton (business), Penn Medicine, and a top law school.' },
+      // EDUCATION — Pittsburgh
+      { id:'cmu',           name:'Carnegie Mellon University', cityId:'pittsburgh',   cat:'education',      emoji:'🤖', desc:'World leader in artificial intelligence, computer science, and robotics research.' },
+      // EDUCATION — Raleigh
+      { id:'duke',          name:'Duke University',           cityId:'raleigh',       cat:'education',      emoji:'🎓', desc:'Top-ranked research university with elite programs in medicine, law, and business.' },
+
+      // MEDIA — New York
+      { id:'nyt',           name:'The New York Times',        cityId:'new_york',      cat:'media',          emoji:'📰', desc:"The paper of record setting the global news agenda for 170+ years." },
+      { id:'conde_nast',    name:'Condé Nast',                cityId:'new_york',      cat:'media',          emoji:'✨', desc:'Global media powerhouse behind Vogue, Wired, The New Yorker, Vanity Fair, and GQ.' },
+      { id:'nbcuniversal',  name:'NBCUniversal',              cityId:'new_york',      cat:'media',          emoji:'🦚', desc:'Major media and entertainment conglomerate spanning broadcast, cable, film, and streaming.' },
+      // MEDIA — Los Angeles
+      { id:'disney',        name:'Walt Disney Company',       cityId:'los_angeles',   cat:'media',          emoji:'🏰', desc:"The world's most beloved entertainment company behind Disney+, Marvel, Pixar, and Star Wars." },
+      { id:'netflix',       name:'Netflix',                   cityId:'los_angeles',   cat:'media',          emoji:'🎬', desc:'Streaming giant producing original prestige content watched by 260M+ subscribers worldwide.' },
+      { id:'warner_bros',   name:'Warner Bros. Discovery',    cityId:'los_angeles',   cat:'media',          emoji:'🎥', desc:'Major studio and media company behind HBO Max, CNN, DC Entertainment, and Warner Bros. films.' },
+      { id:'sony_pictures', name:'Sony Pictures',             cityId:'los_angeles',   cat:'media',          emoji:'🎞️', desc:'Major Hollywood studio producing blockbuster films and prestige TV across all genres.' },
+      // MEDIA — Atlanta
+      { id:'cnn',           name:'CNN',                       cityId:'atlanta',       cat:'media',          emoji:'📺', desc:"America's original 24-hour news network with global reach and editorial influence." },
+      // MEDIA — Nashville
+      { id:'warner_music',  name:'Warner Music Nashville',    cityId:'nashville',     cat:'media',          emoji:'🎸', desc:'Leading country and Americana music label home to iconic chart-topping artists.' },
+
+      // ENGINEERING — Seattle
+      { id:'boeing',        name:'Boeing',                    cityId:'seattle',       cat:'engineering',    emoji:'✈️', desc:"America's largest aerospace company building commercial aircraft and advanced defense systems." },
+      // ENGINEERING — Houston
+      { id:'nasa_johnson',  name:'NASA Johnson Space Center', cityId:'houston',       cat:'engineering',    emoji:'🚀', desc:"NASA's hub for human spaceflight — training astronauts and running mission control for every crewed mission." },
+      { id:'exxon',         name:'ExxonMobil',                cityId:'houston',       cat:'engineering',    emoji:'⛽', desc:"The world's largest publicly-traded oil and gas company driving global energy supply." },
+      // ENGINEERING — San Diego
+      { id:'qualcomm',      name:'Qualcomm',                  cityId:'san_diego',     cat:'engineering',    emoji:'📡', desc:'Global semiconductor leader designing the chips and modems powering every modern smartphone.' },
+      { id:'gen_atomics',   name:'General Atomics',           cityId:'san_diego',     cat:'engineering',    emoji:'⚛️', desc:'Defense and energy conglomerate pioneering nuclear, drone, and directed-energy technologies.' },
+      // ENGINEERING — Denver
+      { id:'lockheed',      name:'Lockheed Martin',           cityId:'denver',        cat:'engineering',    emoji:'🛡️', desc:"America's largest defense contractor building F-35 jets, satellites, and missile defense systems." },
+      { id:'raytheon',      name:'RTX (Raytheon)',            cityId:'denver',        cat:'engineering',    emoji:'🎯', desc:'Global defense giant designing cutting-edge radar, missiles, and cybersecurity systems.' },
+
+      // GOVERNMENT — DC
+      { id:'state_dept',    name:'U.S. Dept. of State',       cityId:'washington_dc', cat:'government',     emoji:'🌐', desc:"America's diplomatic arm managing complex foreign relations across 180+ countries." },
+      { id:'dod',           name:'Dept. of Defense',          cityId:'washington_dc', cat:'government',     emoji:'🎖️', desc:"The world's largest employer, responsible for U.S. national security and military readiness." },
+      { id:'cia',           name:'Central Intelligence Agency', cityId:'washington_dc', cat:'government',   emoji:'🕵️', desc:"America's premier foreign intelligence service gathering and analyzing global threats." },
+      { id:'world_bank',    name:'The World Bank',            cityId:'washington_dc', cat:'government',     emoji:'🌍', desc:'International development institution funding poverty reduction and infrastructure globally.' },
+      // GOVERNMENT — Atlanta
+      { id:'cdc',           name:'CDC',                       cityId:'atlanta',       cat:'government',     emoji:'🦠', desc:'U.S. Centers for Disease Control protecting public health at home and around the world.' },
+
+      // ENTREPRENEURSHIP — San Francisco
+      { id:'sequoia',       name:'Sequoia Capital',           cityId:'san_francisco', cat:'entrepreneurship', emoji:'🌲', desc:'The most iconic VC firm, backing Apple, Google, WhatsApp, and the next generation of giants.' },
+      { id:'a16z',          name:'Andreessen Horowitz (a16z)', cityId:'san_francisco', cat:'entrepreneurship', emoji:'💡', desc:'Top-tier venture firm shaping the future of software, crypto, bio, and consumer tech.' },
+      // ENTREPRENEURSHIP — Austin
+      { id:'indeed',        name:'Indeed',                    cityId:'austin',        cat:'entrepreneurship', emoji:'🔍', desc:"World's #1 job search platform connecting hundreds of millions of workers and employers." },
+      // ENTREPRENEURSHIP — Miami
+      { id:'founders_fund', name:"Founders Fund Miami",       cityId:'miami',         cat:'entrepreneurship', emoji:'🌴', desc:"Peter Thiel's venture fund that relocated to Miami, catalyzing the city's booming tech scene." },
+      // ENTREPRENEURSHIP — Portland
+      { id:'nike',          name:'Nike',                      cityId:'portland',      cat:'entrepreneurship', emoji:'👟', desc:"The world's largest athletic footwear and apparel brand, headquartered in Beaverton, Oregon." },
+    ];
+
+    /* ================================================================
+       MATCHING ALGORITHM
+    ================================================================ */
+    function computeUserVector(answers) {
+      const v = new Array(8).fill(0);
+      answers.forEach(({ qId, aIdx }) => {
+        const q = QUESTIONS.find(q => q.id === qId);
+        if (q && q.answers[aIdx]) q.answers[aIdx].d.forEach((delta, i) => { v[i] += delta; });
+      });
+      return v;
+    }
+
+    function cosineSim(v1, v2) {
+      const dot  = v1.reduce((s, a, i) => s + a * v2[i], 0);
+      const mag1 = Math.sqrt(v1.reduce((s, a) => s + a * a, 0));
+      const mag2 = Math.sqrt(v2.reduce((s, a) => s + a * a, 0));
+      return (mag1 === 0 || mag2 === 0) ? 0 : dot / (mag1 * mag2);
+    }
+
+    function bestCityForJob(job) {
+      return CITIES.reduce((best, city) => {
+        const w = city.iw[job.cat] || 0;
+        return w > (best.w || -1) ? { city, w } : best;
+      }, {}).city || CITIES[0];
+    }
+
+    function bestCompanyForJobCity(job, city) {
+      const exact = COMPANIES.filter(c => c.cityId === city.id && c.cat === job.cat);
+      if (exact.length) return exact[0];
+      const fallback = COMPANIES.filter(c => c.cityId === city.id);
+      return fallback.length ? fallback[0] : COMPANIES[0];
+    }
+
+    function getRankedResults(userVec) {
+      return JOBS
+        .map(job => ({ job, score: cosineSim(userVec, job.v) }))
+        .sort((a, b) => b.score - a.score)
+        .map(({ job, score }, idx) => {
+          const city    = bestCityForJob(job);
+          const company = bestCompanyForJobCity(job, city);
+          return { rank: idx + 1, job, city, company, score };
+        });
+    }
+
+    /* ================================================================
+       UI HELPERS
+    ================================================================ */
+    const CAT_GRADIENT = {
+      'Personality': 'from-violet-500 to-fuchsia-500',
+      'Preferences': 'from-sky-500   to-cyan-400',
+      'Intellectual': 'from-amber-500 to-orange-400',
+      'Social':       'from-emerald-500 to-teal-400',
+    };
+    const CAT_COLOR = {
+      'Personality': '#a78bfa',
+      'Preferences': '#38bdf8',
+      'Intellectual': '#fb923c',
+      'Social':       '#34d399',
+    };
+
+    /* ================================================================
+       COMPONENT: IntroScreen
+    ================================================================ */
+    function IntroScreen({ onStart }) {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center px-4 py-16 relative overflow-hidden"
+          style={{ background: 'linear-gradient(160deg,#080815 0%,#0d0d28 60%,#080815 100%)' }}>
+
+          {/* background orbs */}
+          <div className="orb" style={{ top:'-15%', right:'-8%', width:500, height:500, '--c':'rgba(99,102,241,.18)' }} />
+          <div className="orb" style={{ bottom:'-15%', left:'-8%', width:420, height:420, '--c':'rgba(59,130,246,.13)' }} />
+
+          <div className="relative z-10 text-center max-w-2xl fade-up">
+            <div className="text-7xl mb-6 select-none">🧭</div>
+
+            <h1 className="text-5xl sm:text-6xl font-black mb-3 leading-tight">
+              <span className="grad-text">Find Your</span>
+            </h1>
+            <h1 className="text-5xl sm:text-6xl font-black mb-6 leading-tight text-white">
+              Career Match
+            </h1>
+
+            <p className="text-gray-300 text-lg leading-relaxed mb-10 max-w-lg mx-auto">
+              Answer <strong className="text-white">25 questions</strong> about who you are,
+              what you value, and how you think. We'll match you to a{' '}
+              <strong className="text-white">real job, city, and company</strong> — then rank all your options.
+            </p>
+
+            {/* stat pills */}
+            <div className="flex flex-wrap justify-center gap-4 mb-10">
+              {[['25','Questions'],['58+','Careers'],['20','Cities'],['100+','Companies']].map(([n,l]) => (
+                <div key={l} className="glass rounded-2xl px-6 py-3 text-center">
+                  <div className="text-2xl font-black grad-text">{n}</div>
+                  <div className="text-xs text-gray-400 uppercase tracking-widest mt-0.5">{l}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* category pills */}
+            <div className="flex flex-wrap justify-center gap-2 mb-12">
+              {['Personality','Preferences','Intellectual','Social'].map(cat => (
+                <span key={cat}
+                  className={`bg-gradient-to-r ${CAT_GRADIENT[cat]} text-white text-xs font-bold px-4 py-1.5 rounded-full uppercase tracking-wider`}>
+                  {cat}
+                </span>
+              ))}
+            </div>
+
+            <button onClick={onStart}
+              className="grad-btn px-12 py-4 rounded-2xl text-white font-bold text-lg">
+              Start Your Journey →
+            </button>
+            <p className="mt-4 text-xs text-gray-500">Takes about 3–5 minutes · No account needed</p>
+          </div>
+        </div>
+      );
+    }
+
+    /* ================================================================
+       COMPONENT: ProgressBar
+    ================================================================ */
+    function ProgressBar({ current, total }) {
+      const pct = (current / total) * 100;
+      return (
+        <div className="w-full">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-xs text-gray-500 font-medium">Question {current} of {total}</span>
+            <span className="text-xs font-bold" style={{ color:'#a5b4fc' }}>{Math.round(pct)}%</span>
+          </div>
+          <div className="w-full rounded-full" style={{ height:3, background:'rgba(255,255,255,.08)' }}>
+            <div className="rounded-full" style={{
+              height:3, width:`${pct}%`,
+              background:'linear-gradient(90deg,#6366f1,#3b82f6)',
+              transition:'width .5s cubic-bezier(.25,.8,.25,1)',
+            }} />
+          </div>
+        </div>
+      );
+    }
+
+    /* ================================================================
+       COMPONENT: QuizQuestion
+    ================================================================ */
+    function QuizQuestion({ question, onAnswer }) {
+      const [selected, setSelected] = useState(null);
+      const [leaving,  setLeaving]  = useState(false);
+      const letters = ['A','B','C','D'];
+
+      const pick = (idx) => {
+        if (selected !== null) return;
+        setSelected(idx);
+        setTimeout(() => { setLeaving(true); }, 260);
+        setTimeout(() => { onAnswer(idx); },    540);
+      };
+
+      const catColor = CAT_COLOR[question.cat] || '#a5b4fc';
+
+      return (
+        <div className={leaving ? 'slide-out' : 'slide-in'} style={{ width:'100%' }}>
+          <div className="glass rounded-3xl p-7 sm:p-9" style={{ maxWidth:620, margin:'0 auto' }}>
+
+            {/* category badge */}
+            <span className={`inline-block bg-gradient-to-r ${CAT_GRADIENT[question.cat]} text-white text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-6`}>
+              {question.cat}
+            </span>
+
+            {/* question */}
+            <h2 className="text-xl sm:text-2xl font-bold text-white leading-snug mb-8">
+              {question.text}
+            </h2>
+
+            {/* options */}
+            <div className="flex flex-col gap-3">
+              {question.answers.map((ans, idx) => {
+                const isSelected = selected === idx;
+                const isDimmed   = selected !== null && !isSelected;
+                return (
+                  <button key={idx} onClick={() => pick(idx)}
+                    className={`answer-btn w-full text-left rounded-2xl px-5 py-4 flex items-center gap-4
+                      ${isSelected ? 'selected' : ''} ${isDimmed ? 'dimmed' : ''}`}>
+                    <span className="flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center text-sm font-bold"
+                      style={{
+                        background: isSelected ? `linear-gradient(135deg,#6366f1,#3b82f6)` : 'rgba(255,255,255,.07)',
+                        color: isSelected ? '#fff' : 'rgba(255,255,255,.4)',
+                      }}>
+                      {letters[idx]}
+                    </span>
+                    <span className={`text-sm font-medium leading-snug flex-1 ${isSelected ? 'text-white' : 'text-gray-300'}`}>
+                      {ans.text}
+                    </span>
+                    {isSelected && <span style={{ color: catColor, flexShrink:0 }}>✓</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    /* ================================================================
+       COMPONENT: LoadingScreen
+    ================================================================ */
+    function LoadingScreen() {
+      const [step, setStep] = useState(0);
+      const steps = [
+        'Analyzing your personality profile…',
+        'Mapping your strengths and values…',
+        'Scoring 58 career paths…',
+        'Matching you to real companies…',
+        'Building your personalized rankings…',
+      ];
+      useEffect(() => {
+        let i = 0;
+        const t = setInterval(() => { i++; if (i < steps.length) setStep(i); }, 480);
+        return () => clearInterval(t);
+      }, []);
+
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center px-4"
+          style={{ background:'linear-gradient(160deg,#080815 0%,#0d0d28 60%,#080815 100%)' }}>
+          <div className="text-center fade-up">
+            {/* spinner rings */}
+            <div className="relative mx-auto mb-8" style={{ width:88, height:88 }}>
+              <div className="spin-cw absolute inset-0 rounded-full"
+                style={{ border:'3px solid transparent', borderTopColor:'#6366f1', borderRightColor:'#3b82f6' }} />
+              <div className="spin-ccw absolute inset-2 rounded-full"
+                style={{ border:'2px solid transparent', borderTopColor:'#a5b4fc' }} />
+              <div className="absolute inset-0 flex items-center justify-center text-3xl select-none">🧭</div>
+            </div>
+
+            <h2 className="text-2xl font-bold text-white mb-1">Finding Your Match</h2>
+            <p className="text-gray-500 text-sm mb-8">Running the numbers…</p>
+
+            <div className="flex flex-col gap-2 text-left" style={{ minWidth:260 }}>
+              {steps.map((s, i) => (
+                <div key={i} className="flex items-center gap-3 text-sm transition-all duration-300"
+                  style={{ opacity: i <= step ? 1 : 0.2 }}>
+                  <span style={{ color: i < step ? '#4ade80' : i === step ? '#6366f1' : '#374151', minWidth:14 }}>
+                    {i < step ? '✓' : i === step ? '◈' : '○'}
+                  </span>
+                  <span style={{ color: i <= step ? '#e5e7eb' : '#4b5563' }}>{s}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    /* ================================================================
+       COMPONENT: ScoreBar
+    ================================================================ */
+    function ScoreBar({ score, delay = 0 }) {
+      const pct = Math.round(score * 100);
+      const [w, setW] = useState(0);
+      useEffect(() => {
+        const t = setTimeout(() => setW(pct), delay + 80);
+        return () => clearTimeout(t);
+      }, [pct, delay]);
+      return (
+        <div className="flex items-center gap-3">
+          <div className="flex-1 rounded-full" style={{ height:4, background:'rgba(255,255,255,.07)' }}>
+            <div className="rounded-full" style={{
+              height:4, width:`${w}%`,
+              background: `linear-gradient(90deg,#6366f1,#3b82f6)`,
+              transition: `width 1s cubic-bezier(.25,.8,.25,1)`,
+            }} />
+          </div>
+          <span className="text-xs font-bold w-9 text-right" style={{ color:'#a5b4fc' }}>{pct}%</span>
+        </div>
+      );
+    }
+
+    /* ================================================================
+       COMPONENT: RankRow
+    ================================================================ */
+    function RankRow({ result, heroMode = false }) {
+      const medals = ['🥇','🥈','🥉'];
+      const medal  = result.rank <= 3 ? medals[result.rank - 1] : null;
+
+      if (heroMode) {
+        return (
+          <div className="glass-strong rounded-3xl p-7 sm:p-8 glow-card">
+            <div className="inline-flex items-center gap-2 mb-5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest"
+              style={{ background:'rgba(99,102,241,.25)', color:'#a5b4fc' }}>
+              🥇 Your #1 Match
+            </div>
+            <div className="flex items-start gap-4 mb-5">
+              <span className="text-5xl select-none flex-shrink-0">{result.job.emoji}</span>
+              <div className="flex-1 min-w-0">
+                <h2 className="text-2xl sm:text-3xl font-black text-white mb-2 leading-tight">
+                  {result.job.title}
+                </h2>
+                <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-gray-300">
+                  <span>{result.city.emoji} {result.city.name}, {result.city.state}</span>
+                  <span className="text-gray-600">•</span>
+                  <span>{result.company.emoji} {result.company.name}</span>
+                </div>
+              </div>
+              <div className="text-right flex-shrink-0 ml-2">
+                <div className="text-3xl font-black grad-text">{Math.round(result.score * 100)}%</div>
+                <div className="text-xs text-gray-500">match</div>
+              </div>
+            </div>
+            <p className="text-gray-300 text-sm leading-relaxed mb-2">{result.job.desc}</p>
+            <p className="text-gray-500 text-xs italic mb-5">{result.company.desc}</p>
+            <ScoreBar score={result.score} delay={400} />
+          </div>
+        );
+      }
+
+      return (
+        <div className="rounded-2xl p-4 transition-all duration-150"
+          style={{
+            background: result.rank <= 3 ? 'rgba(99,102,241,.07)' : 'rgba(255,255,255,.025)',
+            border: `1px solid ${result.rank <= 3 ? 'rgba(99,102,241,.25)' : 'rgba(255,255,255,.06)'}`,
+          }}>
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0 text-center" style={{ minWidth:28 }}>
+              {medal
+                ? <span className="text-lg select-none">{medal}</span>
+                : <span className="text-xs font-bold text-gray-500">#{result.rank}</span>}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="text-base select-none">{result.job.emoji}</span>
+                <span className="text-sm font-semibold text-white truncate">{result.job.title}</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-gray-500 mb-2 flex-wrap">
+                <span>{result.city.emoji} {result.city.name}</span>
+                <span>·</span>
+                <span>{result.company.emoji} {result.company.name}</span>
+              </div>
+              <ScoreBar score={result.score} />
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    /* ================================================================
+       COMPONENT: ResultsScreen
+    ================================================================ */
+    function ResultsScreen({ results, onRestart }) {
+      const [showWorst, setShowWorst] = useState(false);
+      const top    = results[0];
+      const top10  = results.slice(0, 10);
+      const bot10  = results.slice(-10).reverse();
+
+      return (
+        <div className="min-h-screen px-4 py-14"
+          style={{ background:'linear-gradient(160deg,#080815 0%,#0d0d28 60%,#080815 100%)' }}>
+          <div className="max-w-2xl mx-auto">
+
+            {/* header */}
+            <div className="text-center mb-8 fade-up">
+              <div className="text-5xl mb-3 select-none">✨</div>
+              <h1 className="text-3xl sm:text-4xl font-black text-white mb-2">Your Career Match</h1>
+              <p className="text-gray-400 text-sm">Based on your unique profile across 8 career dimensions</p>
+            </div>
+
+            {/* hero */}
+            <div className="mb-8 fade-up"><RankRow result={top} heroMode /></div>
+
+            {/* top 10 */}
+            <div className="mb-8 fade-up">
+              <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
+                <span>🏆</span> Your Top 10 Matches
+              </h3>
+              <div className="flex flex-col gap-2">
+                {top10.map(r => <RankRow key={r.job.id} result={r} />)}
+              </div>
+            </div>
+
+            {/* bottom 10 */}
+            <div className="mb-12 fade-up">
+              <button onClick={() => setShowWorst(v => !v)}
+                className="flex items-center gap-2 text-gray-500 hover:text-gray-200 transition-colors text-sm font-semibold mb-4">
+                <span style={{ fontSize:10 }}>{showWorst ? '▼' : '▶'}</span>
+                <span>😬 Your 10 Worst Matches</span>
+              </button>
+              {showWorst && (
+                <div className="flex flex-col gap-2 fade-up">
+                  {bot10.map(r => <RankRow key={r.job.id} result={r} />)}
+                </div>
+              )}
+            </div>
+
+            {/* restart */}
+            <div className="text-center pb-10 fade-up">
+              <button onClick={onRestart}
+                className="glass px-8 py-3 rounded-2xl text-sm font-semibold text-gray-300 hover:text-white hover:border-indigo-500/50 transition-all duration-200">
+                🔄 Retake Quiz
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    /* ================================================================
+       COMPONENT: App  (state machine)
+    ================================================================ */
+    function App() {
+      const [screen,  setScreen]  = useState('intro');   // intro | quiz | loading | results
+      const [qIdx,    setQIdx]    = useState(0);
+      const [answers, setAnswers] = useState([]);
+      const [results, setResults] = useState(null);
+      const [qKey,    setQKey]    = useState(0);         // forces QuizQuestion re-mount
+
+      const handleStart = () => {
+        setQIdx(0); setAnswers([]); setResults(null); setQKey(0);
+        setScreen('quiz');
+      };
+
+      const handleAnswer = (aIdx) => {
+        const newAnswers = [...answers, { qId: QUESTIONS[qIdx].id, aIdx }];
+        setAnswers(newAnswers);
+
+        if (qIdx + 1 < QUESTIONS.length) {
+          setQKey(k => k + 1);
+          setQIdx(i => i + 1);
+        } else {
+          setScreen('loading');
+          setTimeout(() => {
+            const userVec = computeUserVector(newAnswers);
+            setResults(getRankedResults(userVec));
+            setScreen('results');
+          }, 2700);
+        }
+      };
+
+      if (screen === 'intro')   return <IntroScreen onStart={handleStart} />;
+      if (screen === 'loading') return <LoadingScreen />;
+      if (screen === 'results') return <ResultsScreen results={results} onRestart={handleStart} />;
+
+      // quiz
+      return (
+        <div className="min-h-screen flex flex-col relative overflow-hidden"
+          style={{ background:'linear-gradient(160deg,#080815 0%,#0d0d28 60%,#080815 100%)' }}>
+          <div className="orb" style={{ top:'-10%', right:'-5%',  width:380, height:380, '--c':'rgba(99,102,241,.1)' }} />
+          <div className="orb" style={{ bottom:'-10%', left:'-5%', width:340, height:340, '--c':'rgba(59,130,246,.08)' }} />
+
+          {/* progress bar */}
+          <div className="relative z-10 px-5 sm:px-8 pt-8 pb-5" style={{ maxWidth:660, margin:'0 auto', width:'100%' }}>
+            <ProgressBar current={qIdx + 1} total={QUESTIONS.length} />
+          </div>
+
+          {/* question area — takes up remaining space, vertically centered */}
+          <div className="relative z-10 flex-1 flex items-start sm:items-center justify-center px-4 pt-2 pb-10 overflow-hidden">
+            <QuizQuestion key={qKey} question={QUESTIONS[qIdx]} onAnswer={handleAnswer} />
+          </div>
+        </div>
+      );
+    }
+
+    /* mount */
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
