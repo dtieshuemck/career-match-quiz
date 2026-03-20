@@ -84,15 +84,46 @@
     }
 
     .rank-card {
-      background: white;
-      border: 1px solid #e5e7eb;
-      box-shadow: 0 2px 12px rgba(99,102,241,.06);
-      transition: box-shadow .15s;
+      background: white; border: 1px solid #e5e7eb;
+      box-shadow: 0 2px 12px rgba(99,102,241,.06); transition: box-shadow .15s;
     }
     .rank-card:hover { box-shadow: 0 4px 20px rgba(99,102,241,.12); }
-    .rank-card-top {
-      background: rgba(99,102,241,.06);
-      border: 1px solid rgba(99,102,241,.2);
+    .rank-card-top { background: rgba(99,102,241,.06); border: 1px solid rgba(99,102,241,.2); }
+
+    /* ── Sidebar ─────────────────────────────────────── */
+    .sidebar {
+      position: fixed; left: 0; top: 0; bottom: 0; width: 240px;
+      background: white; border-right: 1px solid #e5e7eb;
+      box-shadow: 2px 0 20px rgba(99,102,241,.08);
+      z-index: 200; display: flex; flex-direction: column;
+      transition: transform .25s cubic-bezier(.25,.8,.25,1);
+    }
+    .sidebar-overlay {
+      position: fixed; inset: 0; background: rgba(30,27,75,.35);
+      z-index: 199; backdrop-filter: blur(2px);
+    }
+    .with-sidebar { margin-left: 240px; transition: margin-left .25s; }
+    @media (max-width: 767px) {
+      .sidebar { transform: translateX(-100%); }
+      .sidebar.open { transform: translateX(0); }
+      .with-sidebar { margin-left: 0 !important; }
+    }
+    .nav-btn {
+      display: flex; align-items: center; gap: 10px;
+      width: 100%; padding: 11px 16px; border-radius: 10px;
+      border: none; background: transparent; cursor: pointer;
+      font-size: 14px; font-weight: 500; color: #374151;
+      text-align: left; transition: background .15s, color .15s;
+    }
+    .nav-btn:hover { background: rgba(99,102,241,.06); color: #4f46e5; }
+    .nav-btn.active { background: rgba(99,102,241,.1); color: #4f46e5; font-weight: 700; }
+    .hamburger {
+      position: fixed; top: 14px; left: 14px; z-index: 198;
+      width: 40px; height: 40px; border-radius: 10px;
+      background: white; border: 1px solid #e5e7eb;
+      box-shadow: 0 2px 12px rgba(99,102,241,.12);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 18px;
     }
   </style>
 </head>
@@ -109,7 +140,7 @@
 
   <script type="text/babel">
     const { useState, useEffect, useRef } = React;
-    const VERSION = 'v1.4';
+    const VERSION = 'v1.5';
 
     /* ================================================================
        DIMENSIONS
@@ -123,7 +154,9 @@
     /* ================================================================
        JOBS  (57 careers) — each has: id, title, cat, emoji, desc,
        v (dimension vector), daily (day-in-the-life),
-       levels (salary progression array: { range, title, salary })
+       levels (salary progression: { range, title, salary, desc })
+       NOTE: ranges use "Year X–Y" from career start (incl. professional
+       school for medicine/law) so timelines are directly comparable.
     ================================================================ */
     const JOBS = [
       // FINANCE
@@ -132,104 +165,104 @@
         v:[10,2,6,7,8,4,2,3],
         daily:'Build financial models and pitch books, run due diligence on live M&A and IPO deals, present to senior bankers and clients, and coordinate with legal teams on transaction execution.',
         levels:[
-          { range:'0–2 yrs',  title:'Analyst',           salary:'$110K–$160K' },
-          { range:'3–4 yrs',  title:'Associate',         salary:'$175K–$300K' },
-          { range:'5–7 yrs',  title:'Vice President',    salary:'$300K–$500K' },
-          { range:'8–10 yrs', title:'Director',          salary:'$500K–$800K' },
-          { range:'10+ yrs',  title:'Managing Director', salary:'$800K–$3M+' },
+          { range:'Year 0–2',  title:'Analyst',           salary:'$110K–$160K', desc:'Build complex financial models, draft pitch decks overnight, and support senior bankers on live M&A and IPO transactions.' },
+          { range:'Year 3–5',  title:'Associate',         salary:'$175K–$300K', desc:'Lead discrete work-streams on deals, manage analyst teams, run client calls, and own key sections of transaction documents.' },
+          { range:'Year 6–9',  title:'Vice President',    salary:'$300K–$500K', desc:'Originate deal flow, manage client relationships, oversee transaction execution, and mentor the junior team.' },
+          { range:'Year 10–13',title:'Director',          salary:'$500K–$800K', desc:'Drive revenue through active client coverage, lead complex multi-party transactions, and build the firm\'s sector presence.' },
+          { range:'Year 14+',  title:'Managing Director', salary:'$800K–$3M+',  desc:'Own the franchise: generate billions in deal fees, sit on client boards, and set the strategic direction of your group.' },
         ]},
       { id:'hedge_fund_manager', title:'Hedge Fund Manager', cat:'finance', emoji:'📈',
         desc:'Run sophisticated multi-strategy investment portfolios to generate alpha for institutional clients.',
         v:[10,3,3,8,5,8,1,5],
         daily:'Research macro trends and individual securities, run quantitative models, monitor portfolio risk exposure, and present investment theses to partners.',
         levels:[
-          { range:'0–2 yrs',  title:'Research Analyst',         salary:'$100K–$200K' },
-          { range:'3–5 yrs',  title:'Senior Analyst',           salary:'$200K–$500K' },
-          { range:'6–9 yrs',  title:'Portfolio Manager',        salary:'$500K–$2M' },
-          { range:'10+ yrs',  title:'Managing Partner / PM',    salary:'$1M–$50M+' },
+          { range:'Year 0–2',  title:'Research Analyst',       salary:'$100K–$200K', desc:'Conduct deep-dive research on securities, build quantitative models, and support portfolio managers with investment theses.' },
+          { range:'Year 3–6',  title:'Senior Analyst',         salary:'$200K–$500K', desc:'Independently cover a sub-sector or strategy, pitch high-conviction ideas to the PM, and manage smaller book risk.' },
+          { range:'Year 7–11', title:'Portfolio Manager',      salary:'$500K–$2M',   desc:'Run a dedicated portfolio sleeve, own P&L responsibility, and deploy capital into your highest-conviction positions.' },
+          { range:'Year 12+',  title:'Managing Partner / PM',  salary:'$1M–$50M+',   desc:'Set the fund\'s investment philosophy, attract and retain institutional LPs, and take significant profit-share economics.' },
         ]},
       { id:'financial_analyst', title:'Financial Analyst', cat:'finance', emoji:'📊',
         desc:'Model financial performance, evaluate investments, and guide data-driven business decisions.',
         v:[9,2,3,4,8,3,2,4],
         daily:'Build and maintain financial models, prepare earnings reports, run variance analysis, support budgeting cycles, and present findings to senior leadership.',
         levels:[
-          { range:'0–2 yrs',  title:'Financial Analyst',        salary:'$65K–$90K' },
-          { range:'3–4 yrs',  title:'Senior Financial Analyst', salary:'$90K–$120K' },
-          { range:'5–7 yrs',  title:'Finance Manager',          salary:'$120K–$160K' },
-          { range:'8–10 yrs', title:'Director of Finance',      salary:'$160K–$220K' },
-          { range:'10+ yrs',  title:'VP of Finance / CFO',      salary:'$220K–$500K+' },
+          { range:'Year 0–2',  title:'Financial Analyst',        salary:'$65K–$90K',   desc:'Build financial models, maintain reporting dashboards, run variance analysis, and support the annual budget cycle.' },
+          { range:'Year 3–5',  title:'Senior Financial Analyst', salary:'$90K–$120K',  desc:'Lead forecasting projects, own key business unit P&Ls, and present financial insights directly to department heads.' },
+          { range:'Year 6–9',  title:'Finance Manager',          salary:'$120K–$160K', desc:'Manage a team of analysts, own the financial planning process, and partner with business leaders on strategic decisions.' },
+          { range:'Year 10–14',title:'Director of Finance',      salary:'$160K–$220K', desc:'Set financial strategy for a major division, oversee FP&A and reporting functions, and advise the CFO.' },
+          { range:'Year 15+',  title:'VP of Finance / CFO',      salary:'$220K–$500K+',desc:'Lead the entire finance organization, serve as strategic partner to the CEO, and represent the company to investors.' },
         ]},
       { id:'venture_capitalist', title:'Venture Capitalist', cat:'finance', emoji:'🚀',
         desc:'Identify and fund the next generation of breakthrough startups across consumer, enterprise, and deep tech.',
         v:[8,5,7,8,3,10,3,4],
         daily:'Review startup pitches, conduct founder and market due diligence, attend board meetings for portfolio companies, source new deal leads, and write investment memos.',
         levels:[
-          { range:'0–2 yrs',  title:'Analyst / Associate',              salary:'$80K–$130K' },
-          { range:'3–5 yrs',  title:'Senior Associate / Principal',     salary:'$130K–$250K' },
-          { range:'6–9 yrs',  title:'Vice President',                   salary:'$200K–$400K' },
-          { range:'10+ yrs',  title:'Partner / General Partner',        salary:'$400K–$5M+' },
+          { range:'Year 0–3',  title:'Analyst / Associate',          salary:'$80K–$130K',  desc:'Source deals, conduct market research, run financial diligence, and write investment memos for partners.' },
+          { range:'Year 4–7',  title:'Sr. Associate / Principal',    salary:'$130K–$250K',  desc:'Lead due diligence on deals, develop founder relationships, and take initial board observer seats.' },
+          { range:'Year 8–12', title:'Vice President',               salary:'$200K–$400K',  desc:'Source and lead investments independently, sit on portfolio company boards, and shape fund strategy.' },
+          { range:'Year 13+',  title:'Partner / General Partner',    salary:'$400K–$5M+',   desc:'Raise new funds from LPs, set investment thesis, lead the firm, and own carry economics on successful outcomes.' },
         ]},
       { id:'private_equity', title:'Private Equity Analyst', cat:'finance', emoji:'🏢',
         desc:'Acquire, optimize, and grow private companies through operational improvements and strategic repositioning.',
         v:[10,2,4,6,8,5,1,3],
         daily:'Model LBO and DCF scenarios, conduct industry research, prepare investment committee materials, monitor portfolio company KPIs, and assist with deal sourcing.',
         levels:[
-          { range:'0–2 yrs',  title:'Analyst',                          salary:'$120K–$180K' },
-          { range:'3–4 yrs',  title:'Associate',                        salary:'$200K–$350K' },
-          { range:'5–7 yrs',  title:'Vice President',                   salary:'$350K–$600K' },
-          { range:'8–10 yrs', title:'Principal / Director',             salary:'$600K–$1M' },
-          { range:'10+ yrs',  title:'Managing Director / Partner',      salary:'$1M–$10M+' },
+          { range:'Year 0–2',  title:'Analyst',                  salary:'$120K–$180K', desc:'Build LBO models and sector analyses, conduct management interviews, and prepare investment committee materials.' },
+          { range:'Year 3–5',  title:'Associate',                salary:'$200K–$350K', desc:'Lead due diligence work streams, own portfolio monitoring, and drive the operational improvement agenda.' },
+          { range:'Year 6–9',  title:'Vice President',           salary:'$350K–$600K', desc:'Originate deals, serve on portfolio company boards, and drive strategic growth initiatives for invested companies.' },
+          { range:'Year 10–14',title:'Principal / Director',     salary:'$600K–$1M',   desc:'Lead investments end-to-end and drive exits generating fund returns, building a personal track record.' },
+          { range:'Year 15+',  title:'Managing Director / Partner',salary:'$1M–$10M+', desc:'Raise capital from institutional LPs, set fund strategy, and lead the firm\'s flagship investment activity.' },
         ]},
       { id:'actuary', title:'Actuary', cat:'finance', emoji:'🧮',
         desc:'Use advanced statistics and probability to model financial risk for insurance and pension institutions.',
         v:[10,2,2,3,9,2,2,6],
         daily:'Develop statistical models to assess financial risk, analyze mortality and loss data, validate pricing assumptions, and prepare regulatory reports.',
         levels:[
-          { range:'0–2 yrs',  title:'Actuarial Analyst',                salary:'$65K–$85K' },
-          { range:'3–5 yrs',  title:'Associate Actuary',                salary:'$90K–$120K' },
-          { range:'6–9 yrs',  title:'Fellow Actuary',                   salary:'$120K–$180K' },
-          { range:'10+ yrs',  title:'Chief Actuary / Director',         salary:'$180K–$350K+' },
+          { range:'Year 0–3',  title:'Actuarial Analyst',       salary:'$65K–$85K',   desc:'Pass preliminary actuarial exams while supporting pricing, reserving, or valuation teams with statistical analysis.' },
+          { range:'Year 4–8',  title:'Associate Actuary (ASA)', salary:'$90K–$120K',  desc:'Complete associate designation, take ownership of pricing models, and advise business units on risk assumptions.' },
+          { range:'Year 9–14', title:'Fellow Actuary (FSA)',    salary:'$120K–$180K', desc:'Lead actuarial projects, mentor junior staff, produce regulatory filings, and consult on product development.' },
+          { range:'Year 15+',  title:'Chief Actuary / Director',salary:'$180K–$350K+',desc:'Set enterprise risk methodology, represent the company to regulators, and serve on executive leadership committees.' },
         ]},
       { id:'cpa', title:'CPA / Accountant', cat:'finance', emoji:'📋',
         desc:'Ensure financial compliance, audit corporate books, and deliver tax strategy for businesses and individuals.',
         v:[8,1,3,4,10,2,3,3],
         daily:'Prepare and review financial statements, conduct audits, advise on tax strategy, ensure regulatory compliance, and support clients through reporting cycles.',
         levels:[
-          { range:'0–2 yrs',  title:'Staff Accountant',                 salary:'$55K–$75K' },
-          { range:'3–4 yrs',  title:'Senior Accountant',                salary:'$75K–$100K' },
-          { range:'5–7 yrs',  title:'Accounting Manager',               salary:'$100K–$140K' },
-          { range:'8–10 yrs', title:'Controller',                       salary:'$140K–$200K' },
-          { range:'10+ yrs',  title:'CFO / Partner',                    salary:'$200K–$500K+' },
+          { range:'Year 0–2',  title:'Staff Accountant',         salary:'$55K–$75K',   desc:'Prepare journal entries, reconcile accounts, assist with audits, and study for the CPA exam while building foundational skills.' },
+          { range:'Year 3–5',  title:'Senior Accountant',        salary:'$75K–$100K',  desc:'Lead audit engagements, review junior work, provide tax advice to clients, and begin building client relationships.' },
+          { range:'Year 6–9',  title:'Accounting Manager',       salary:'$100K–$140K', desc:'Manage a team, oversee the month-end close, ensure SOX compliance, and develop client or departmental strategy.' },
+          { range:'Year 10–14',title:'Controller',               salary:'$140K–$200K', desc:'Own the entire accounting function, manage external auditor relationships, and report directly to the CFO.' },
+          { range:'Year 15+',  title:'CFO / Partner',            salary:'$200K–$500K+',desc:'Drive company-wide financial strategy, lead fundraising and M&A, or build and run an accounting practice.' },
         ]},
       { id:'wealth_manager', title:'Investment Advisor', cat:'finance', emoji:'💰',
         desc:'Build long-term wealth strategies for high-net-worth clients through personalized portfolio management.',
         v:[8,4,7,5,6,5,6,3],
         daily:'Meet with clients to review portfolio performance, rebalance asset allocations, research investment products, prospect new clients, and prepare comprehensive financial plans.',
         levels:[
-          { range:'0–2 yrs',  title:'Financial Advisor',                salary:'$50K–$90K' },
-          { range:'3–5 yrs',  title:'Senior Financial Advisor',         salary:'$90K–$150K' },
-          { range:'6–9 yrs',  title:'Wealth Manager',                   salary:'$150K–$300K' },
-          { range:'10+ yrs',  title:'Managing Director / Partner',      salary:'$300K–$1M+' },
+          { range:'Year 0–3',  title:'Financial Advisor',        salary:'$50K–$90K',   desc:'Build an initial client book, pass Series 7/65/66 exams, assist senior advisors, and learn portfolio construction fundamentals.' },
+          { range:'Year 4–8',  title:'Senior Financial Advisor', salary:'$90K–$150K',  desc:'Independently manage $50–$100M+ in assets, deepen client relationships, and develop a specialization (e.g., estate planning).' },
+          { range:'Year 9–14', title:'Wealth Manager',           salary:'$150K–$300K', desc:'Serve ultra-high-net-worth clients with $5M+ portfolios, offering holistic tax, estate, and investment planning.' },
+          { range:'Year 15+',  title:'Managing Director / Partner',salary:'$300K–$1M+',desc:'Run a major client franchise, lead a team of advisors, and set the investment philosophy for your practice.' },
         ]},
       { id:'re_developer', title:'Real Estate Developer', cat:'finance', emoji:'🏗️',
         desc:'Identify, acquire, and transform land and buildings into high-value commercial and residential projects.',
         v:[7,6,6,7,5,8,3,4],
         daily:'Evaluate acquisitions, run financial feasibility models, coordinate with architects and contractors, navigate zoning approvals, and manage project timelines.',
         levels:[
-          { range:'0–2 yrs',  title:'Development Analyst',              salary:'$70K–$100K' },
-          { range:'3–5 yrs',  title:'Development Manager',              salary:'$100K–$150K' },
-          { range:'6–9 yrs',  title:'Director of Development',          salary:'$150K–$250K' },
-          { range:'10+ yrs',  title:'Principal / Partner',              salary:'$250K–$1M+' },
+          { range:'Year 0–3',  title:'Development Analyst',      salary:'$70K–$100K',  desc:'Build pro forma financial models, research zoning and entitlements, and support senior developers on active projects.' },
+          { range:'Year 4–7',  title:'Development Manager',      salary:'$100K–$150K', desc:'Lead individual project executions, manage contractor and architect relationships, and own entitlement processes.' },
+          { range:'Year 8–13', title:'Director of Development',  salary:'$150K–$250K', desc:'Oversee a portfolio of projects simultaneously, secure construction financing, and lead acquisition underwriting.' },
+          { range:'Year 14+',  title:'Principal / Partner',      salary:'$250K–$1M+',  desc:'Source and fund major development deals independently, build investor relationships, and establish a development firm.' },
         ]},
       { id:'re_broker', title:'Commercial RE Broker', cat:'finance', emoji:'🏙️',
         desc:'Match businesses and investors with premium commercial properties across competitive urban markets.',
         v:[5,5,8,5,4,7,4,2],
         daily:'Source and show commercial properties, negotiate lease and sale agreements, build relationships with landlords and tenants, and manage deal closings end to end.',
         levels:[
-          { range:'0–2 yrs',  title:'Associate Broker',                 salary:'$50K–$80K' },
-          { range:'3–5 yrs',  title:'Broker',                           salary:'$80K–$150K' },
-          { range:'6–9 yrs',  title:'Senior Broker / VP',               salary:'$150K–$350K' },
-          { range:'10+ yrs',  title:'Partner / Managing Broker',        salary:'$350K–$1M+' },
+          { range:'Year 0–3',  title:'Associate Broker',         salary:'$50K–$80K',   desc:'Shadow senior brokers, learn the local market, cold-call prospects, and co-execute smaller lease transactions.' },
+          { range:'Year 4–7',  title:'Broker',                   salary:'$80K–$150K',  desc:'Independently represent tenants and landlords, execute mid-market deals, and grow your proprietary client database.' },
+          { range:'Year 8–13', title:'Senior Broker / VP',       salary:'$150K–$350K', desc:'Handle marquee leases and investment sales, build a deep network of institutional clients and property owners.' },
+          { range:'Year 14+',  title:'Partner / Managing Broker',salary:'$350K–$1M+',  desc:'Lead a team of brokers, generate enterprise-level deal flow, and set strategy for your practice group or firm.' },
         ]},
 
       // TECHNOLOGY
@@ -238,97 +271,97 @@
         v:[8,6,3,4,6,5,2,10],
         daily:'Write, review, and ship code, attend stand-ups and technical design reviews, debug production issues, collaborate with product managers, and document systems.',
         levels:[
-          { range:'0–2 yrs',  title:'Software Engineer I',              salary:'$95K–$140K' },
-          { range:'3–4 yrs',  title:'Software Engineer II',             salary:'$140K–$185K' },
-          { range:'5–7 yrs',  title:'Senior Software Engineer',         salary:'$180K–$260K' },
-          { range:'8–10 yrs', title:'Staff Engineer',                   salary:'$250K–$380K' },
-          { range:'10+ yrs',  title:'Principal / Distinguished Engineer',salary:'$350K–$600K+' },
+          { range:'Year 0–2',  title:'Software Engineer I',               salary:'$95K–$140K',   desc:'Learn the codebase, fix bugs, ship small features, and establish code review habits with guidance from senior engineers.' },
+          { range:'Year 3–5',  title:'Software Engineer II',              salary:'$140K–$185K',  desc:'Own medium-complexity projects end-to-end, contribute to system design discussions, and mentor newer engineers.' },
+          { range:'Year 6–9',  title:'Senior Software Engineer',          salary:'$180K–$260K',  desc:'Lead technical design of major features, set coding standards for your team, and drive cross-team initiatives.' },
+          { range:'Year 10–14',title:'Staff Engineer',                    salary:'$250K–$380K',  desc:'Define technical strategy across multiple teams, resolve the hardest architectural problems, and develop engineering culture.' },
+          { range:'Year 15+',  title:'Principal / Distinguished Engineer',salary:'$350K–$600K+', desc:'Set organization-wide technical direction, publish influential engineering research, and shape the industry.' },
         ]},
       { id:'ml_engineer', title:'ML / AI Engineer', cat:'tech', emoji:'🤖',
         desc:'Build AI and machine learning systems that learn from data to power intelligent products and decisions.',
         v:[10,5,2,3,5,4,1,10],
         daily:'Design and train machine learning models, run experiments, evaluate model performance, deploy models to production, and collaborate with research and engineering teams.',
         levels:[
-          { range:'0–2 yrs',  title:'ML Engineer I',                    salary:'$110K–$160K' },
-          { range:'3–4 yrs',  title:'ML Engineer II',                   salary:'$160K–$220K' },
-          { range:'5–7 yrs',  title:'Senior ML Engineer',               salary:'$210K–$320K' },
-          { range:'8–10 yrs', title:'Staff ML Engineer',                salary:'$300K–$450K' },
-          { range:'10+ yrs',  title:'Principal AI Engineer',            salary:'$400K–$700K+' },
+          { range:'Year 0–2',  title:'ML Engineer I',           salary:'$110K–$160K', desc:'Implement and iterate on ML models, run offline evaluation experiments, and deploy to production with senior guidance.' },
+          { range:'Year 3–5',  title:'ML Engineer II',          salary:'$160K–$220K', desc:'Own complete ML pipelines, design feature engineering systems, and drive measurable metric improvements for core products.' },
+          { range:'Year 6–9',  title:'Senior ML Engineer',      salary:'$210K–$320K', desc:'Lead the ML strategy for a product area, author technical design documents, and set modeling best practices for the team.' },
+          { range:'Year 10–14',title:'Staff ML Engineer',       salary:'$300K–$450K', desc:'Define company-wide ML infrastructure, drive foundational model research, and represent ML strategy to leadership.' },
+          { range:'Year 15+',  title:'Principal AI Engineer',   salary:'$400K–$700K+',desc:'Set the organization\'s AI vision, publish landmark research, and define breakthrough capabilities at industry scale.' },
         ]},
       { id:'product_manager', title:'Product Manager', cat:'tech', emoji:'🗺️',
         desc:'Define product vision, align engineering and design, and ship features that users genuinely love.',
         v:[7,7,7,8,5,7,6,5],
         daily:'Write product specs, prioritize the roadmap, run sprint planning with engineers, conduct user research, analyze metrics, and present strategy to leadership.',
         levels:[
-          { range:'0–2 yrs',  title:'Associate Product Manager',        salary:'$90K–$130K' },
-          { range:'3–4 yrs',  title:'Product Manager',                  salary:'$130K–$185K' },
-          { range:'5–7 yrs',  title:'Senior Product Manager',           salary:'$180K–$260K' },
-          { range:'8–10 yrs', title:'Group PM / Director of Product',   salary:'$250K–$380K' },
-          { range:'10+ yrs',  title:'VP of Product / CPO',              salary:'$350K–$700K+' },
+          { range:'Year 0–2',  title:'Associate Product Manager', salary:'$90K–$130K',  desc:'Learn the product and user base, write detailed PRDs, coordinate sprint ceremonies, and track feature metrics post-launch.' },
+          { range:'Year 3–5',  title:'Product Manager',           salary:'$130K–$185K', desc:'Own a product area end-to-end, drive roadmap prioritization, and influence cross-functional teams toward a clear vision.' },
+          { range:'Year 6–9',  title:'Senior Product Manager',    salary:'$180K–$260K', desc:'Define multi-quarter strategy for a major product, mentor junior PMs, and navigate complex stakeholder trade-offs.' },
+          { range:'Year 10–14',title:'Group PM / Director',       salary:'$250K–$380K', desc:'Lead a group of PMs, own a product portfolio generating significant revenue, and set the culture of product excellence.' },
+          { range:'Year 15+',  title:'VP of Product / CPO',       salary:'$350K–$700K+',desc:'Set company-wide product strategy, operate at the board level, and build the systems that deliver breakthrough products at scale.' },
         ]},
       { id:'ux_designer', title:'UX / UI Designer', cat:'tech', emoji:'🎨',
         desc:'Craft beautiful, intuitive digital experiences that delight users and solve real, meaningful problems.',
         v:[4,10,6,4,5,5,8,5],
         daily:'Create wireframes and high-fidelity mockups, run user research and usability tests, iterate on designs based on feedback, and collaborate with engineers on implementation.',
         levels:[
-          { range:'0–2 yrs',  title:'Junior UX Designer',               salary:'$65K–$90K' },
-          { range:'3–4 yrs',  title:'UX Designer',                      salary:'$90K–$130K' },
-          { range:'5–7 yrs',  title:'Senior UX Designer',               salary:'$130K–$180K' },
-          { range:'8–10 yrs', title:'Lead Designer / Design Manager',   salary:'$175K–$250K' },
-          { range:'10+ yrs',  title:'VP of Design / CDO',               salary:'$250K–$450K+' },
+          { range:'Year 0–2',  title:'Junior UX Designer',             salary:'$65K–$90K',   desc:'Create wireframes and low-fidelity mockups, conduct basic user research, and support senior designers on large product areas.' },
+          { range:'Year 3–5',  title:'UX Designer',                    salary:'$90K–$130K',  desc:'Own the end-to-end design for product features, run usability tests, and collaborate closely with engineering on implementation.' },
+          { range:'Year 6–9',  title:'Senior UX Designer',             salary:'$130K–$180K', desc:'Define design systems, drive complex UX strategy for major product areas, and influence product direction through design thinking.' },
+          { range:'Year 10–14',title:'Lead Designer / Design Manager', salary:'$175K–$250K', desc:'Manage a team of designers, set design quality standards, present design strategy to C-suite, and drive a culture of user-centricity.' },
+          { range:'Year 15+',  title:'VP of Design / CDO',             salary:'$250K–$450K+',desc:'Own company-wide design language and UX vision, report to the CEO, and position design as a core business differentiator.' },
         ]},
       { id:'data_scientist', title:'Data Scientist', cat:'tech', emoji:'🔬',
         desc:'Extract meaning from complex datasets using statistics, ML models, and compelling data storytelling.',
         v:[10,5,3,4,6,4,2,9],
         daily:'Clean and analyze large datasets, build predictive models, run A/B experiments, communicate findings to stakeholders, and iterate based on real-world performance.',
         levels:[
-          { range:'0–2 yrs',  title:'Data Scientist I',                 salary:'$95K–$140K' },
-          { range:'3–4 yrs',  title:'Data Scientist II',                salary:'$140K–$190K' },
-          { range:'5–7 yrs',  title:'Senior Data Scientist',            salary:'$185K–$260K' },
-          { range:'8–10 yrs', title:'Staff Data Scientist',             salary:'$250K–$360K' },
-          { range:'10+ yrs',  title:'Principal Data Scientist',         salary:'$320K–$550K+' },
+          { range:'Year 0–2',  title:'Data Scientist I',         salary:'$95K–$140K',  desc:'Clean and analyze datasets, build basic predictive models, run A/B tests, and communicate results to product and business teams.' },
+          { range:'Year 3–5',  title:'Data Scientist II',        salary:'$140K–$190K', desc:'Own the analytics infrastructure for a product area, design robust experiments, and deliver insights that directly drive decisions.' },
+          { range:'Year 6–9',  title:'Senior Data Scientist',    salary:'$185K–$260K', desc:'Lead company-critical ML and analytics projects, mentor junior scientists, and consult with executive stakeholders on strategy.' },
+          { range:'Year 10–14',title:'Staff Data Scientist',     salary:'$250K–$360K', desc:'Define the data science roadmap for major business units, pioneer new modeling techniques, and build the discipline\'s culture.' },
+          { range:'Year 15+',  title:'Principal Data Scientist', salary:'$320K–$550K+',desc:'Set analytics strategy at the organizational level, publish influential research, and represent science to investors and the board.' },
         ]},
       { id:'devops', title:'DevOps Engineer', cat:'tech', emoji:'⚙️',
         desc:'Build and maintain cloud infrastructure and CI/CD pipelines that keep software running reliably at scale.',
         v:[6,4,3,4,8,4,2,10],
         daily:'Manage cloud infrastructure, build CI/CD pipelines, monitor system reliability, respond to production incidents, and automate operational processes.',
         levels:[
-          { range:'0–2 yrs',  title:'DevOps Engineer I',                salary:'$85K–$120K' },
-          { range:'3–4 yrs',  title:'DevOps Engineer II',               salary:'$120K–$160K' },
-          { range:'5–7 yrs',  title:'Senior DevOps / SRE',              salary:'$160K–$220K' },
-          { range:'8–10 yrs', title:'Staff SRE / Infrastructure Lead',  salary:'$210K–$300K' },
-          { range:'10+ yrs',  title:'Principal Engineer / VP Eng',      salary:'$280K–$500K+' },
+          { range:'Year 0–2',  title:'DevOps Engineer I',              salary:'$85K–$120K',  desc:'Manage cloud environments, build automated deployment pipelines, respond to on-call incidents, and learn infrastructure as code.' },
+          { range:'Year 3–5',  title:'DevOps Engineer II',             salary:'$120K–$160K', desc:'Design scalable CI/CD systems, optimize cloud costs, implement observability tooling, and lead incident response processes.' },
+          { range:'Year 6–9',  title:'Senior DevOps / SRE',           salary:'$160K–$220K', desc:'Architect company-wide reliability programs, set SLA standards, and drive platform engineering strategy across engineering teams.' },
+          { range:'Year 10–14',title:'Staff SRE / Infra Lead',        salary:'$210K–$300K', desc:'Lead multi-cloud strategy, set the reliability and security posture for the entire engineering organization.' },
+          { range:'Year 15+',  title:'Principal Engineer / VP Eng',   salary:'$280K–$500K+',desc:'Define infrastructure philosophy, lead the engineering platform team, and position the company\'s technology for 10x scale.' },
         ]},
       { id:'cybersecurity', title:'Cybersecurity Analyst', cat:'tech', emoji:'🔒',
         desc:'Protect organizations from digital threats by hunting vulnerabilities and building robust security systems.',
         v:[8,4,2,3,8,4,2,10],
         daily:'Monitor security alerts, investigate threats, conduct vulnerability assessments, write incident reports, and implement security controls across the organization.',
         levels:[
-          { range:'0–2 yrs',  title:'Security Analyst I',               salary:'$70K–$100K' },
-          { range:'3–4 yrs',  title:'Security Analyst II',              salary:'$100K–$135K' },
-          { range:'5–7 yrs',  title:'Senior Security Engineer',         salary:'$135K–$190K' },
-          { range:'8–10 yrs', title:'Security Manager / Architect',     salary:'$180K–$260K' },
-          { range:'10+ yrs',  title:'CISO / VP of Security',            salary:'$250K–$500K+' },
+          { range:'Year 0–2',  title:'Security Analyst I',             salary:'$70K–$100K',  desc:'Monitor SIEM dashboards, triage security alerts, respond to incidents under supervision, and earn baseline certifications (Security+, CEH).' },
+          { range:'Year 3–5',  title:'Security Analyst II',            salary:'$100K–$135K', desc:'Lead threat investigations, conduct penetration tests, develop detection rules, and coordinate incident response playbooks.' },
+          { range:'Year 6–9',  title:'Senior Security Engineer',       salary:'$135K–$190K', desc:'Design enterprise security architecture, lead red-team exercises, and brief executive leadership on the threat landscape.' },
+          { range:'Year 10–14',title:'Security Manager / Architect',   salary:'$180K–$260K', desc:'Own the security program for a business unit, manage a team, and navigate regulatory compliance (SOC2, ISO 27001, FedRAMP).' },
+          { range:'Year 15+',  title:'CISO / VP of Security',          salary:'$250K–$500K+',desc:'Set the enterprise security strategy, own risk management for the board, and lead the organization\'s cyber resilience posture.' },
         ]},
       { id:'cto', title:'Chief Technology Officer', cat:'tech', emoji:'🖥️',
         desc:'Set technical vision and lead engineering teams to build transformative technology at scale.',
         v:[8,7,6,10,5,8,5,9],
         daily:'Set the technical roadmap, partner with engineering leads, review architecture decisions, recruit senior talent, and present technology strategy to the board.',
         levels:[
-          { range:'0–3 yrs',  title:'VP of Engineering',                salary:'$200K–$350K' },
-          { range:'4–7 yrs',  title:'SVP of Engineering',               salary:'$300K–$500K' },
-          { range:'8–12 yrs', title:'CTO (Mid-size company)',           salary:'$400K–$700K' },
-          { range:'12+ yrs',  title:'CTO (Enterprise / FAANG)',         salary:'$600K–$3M+' },
+          { range:'Year 0–3',  title:'VP of Engineering',              salary:'$200K–$350K', desc:'Lead engineering teams, drive the hiring plan, own reliability and delivery metrics, and report to the CEO on technical health.' },
+          { range:'Year 4–9',  title:'SVP of Engineering',             salary:'$300K–$500K', desc:'Set the multi-year engineering roadmap, manage a large org, and align technology investment to business strategy.' },
+          { range:'Year 10–15',title:'CTO (Growth-stage)',             salary:'$400K–$700K', desc:'Define the technical vision for the company, represent engineering in investor conversations, and enable the next 10x of scale.' },
+          { range:'Year 16+',  title:'CTO (Enterprise / FAANG)',       salary:'$600K–$3M+',  desc:'Shape the technology strategy of a global organization, influence industry standards, and develop the next generation of tech leaders.' },
         ]},
       { id:'startup_founder', title:'Startup Founder / CEO', cat:'tech', emoji:'⚡',
         desc:'Build a company from idea to product-market fit, leading every aspect of growth and culture.',
         v:[6,8,7,10,3,10,6,5],
         daily:'Pitch investors, recruit the founding team, set product and company strategy, close early customers, review key metrics, and manage cash and runway.',
         levels:[
-          { range:'0–2 yrs',  title:'Co-Founder / CEO',                 salary:'$0–$100K + equity' },
-          { range:'3–5 yrs',  title:'CEO (Seed / Series A)',             salary:'$100K–$200K + equity' },
-          { range:'6–9 yrs',  title:'CEO (Series B/C)',                  salary:'$200K–$350K + equity' },
-          { range:'10+ yrs',  title:'CEO (Late-stage / Exit)',           salary:'$350K–$1M+ + equity' },
+          { range:'Year 0–2',  title:'Co-Founder / CEO',               salary:'$0–$100K + equity',      desc:'Build the MVP, find the first 10 customers, recruit co-founders, survive on minimal salary, and prove the core hypothesis.' },
+          { range:'Year 3–5',  title:'CEO (Seed–Series A)',             salary:'$100K–$200K + equity',   desc:'Achieve product-market fit, raise $2–$15M, hire the leadership team, and establish repeatable sales motions.' },
+          { range:'Year 6–10', title:'CEO (Series B/C)',                salary:'$200K–$350K + equity',   desc:'Scale the organization to 100–500 people, raise $30–$100M+, expand to new markets, and build category-defining operations.' },
+          { range:'Year 11+',  title:'CEO (Late-stage / Exit)',         salary:'$350K–$1M+ + equity',    desc:'Lead toward IPO or acquisition, manage a large executive team, and convert equity into generational wealth.' },
         ]},
 
       // CONSULTING & STRATEGY
@@ -337,204 +370,215 @@
         v:[9,6,7,7,7,5,5,4],
         daily:'Interview client stakeholders, analyze data, build PowerPoint decks and Excel models, present recommendations, and travel to client sites multiple days per week.',
         levels:[
-          { range:'0–2 yrs',  title:'Business Analyst / Analyst',       salary:'$90K–$110K' },
-          { range:'3–4 yrs',  title:'Consultant / Associate',           salary:'$150K–$200K' },
-          { range:'5–7 yrs',  title:'Engagement Manager',               salary:'$200K–$300K' },
-          { range:'8–10 yrs', title:'Associate Principal',              salary:'$300K–$450K' },
-          { range:'10+ yrs',  title:'Partner / Principal',              salary:'$500K–$2M+' },
+          { range:'Year 0–2',  title:'Business Analyst / Analyst',  salary:'$90K–$110K',  desc:'Structure client problems, build models and slides under tight deadlines, travel to client sites, and manage your own work streams.' },
+          { range:'Year 3–5',  title:'Consultant / Associate',      salary:'$150K–$200K', desc:'Lead client work streams, manage analysts, run stakeholder interviews, and develop industry expertise in a chosen vertical.' },
+          { range:'Year 6–9',  title:'Engagement Manager',          salary:'$200K–$300K', desc:'Run entire client engagements, manage the project team, develop client relationships, and own the final recommendations.' },
+          { range:'Year 10–14',title:'Associate Principal',         salary:'$300K–$450K', desc:'Drive business development, co-lead major accounts, and begin building the personal reputation that earns partnership.' },
+          { range:'Year 15+',  title:'Partner / Principal',         salary:'$500K–$2M+',  desc:'Own a client portfolio generating $10M+ in annual revenue, lead the firm, and be recognized as a global subject-matter authority.' },
         ]},
       { id:'strategy_consultant', title:'Strategy Consultant', cat:'consulting', emoji:'♟️',
         desc:'Advise CEOs and boards on corporate strategy, market entry, M&A, and competitive positioning.',
         v:[9,7,6,8,6,6,4,4],
         daily:'Structure complex business problems, run competitive benchmarking, build strategy frameworks, facilitate CEO workshops, and produce polished client deliverables.',
         levels:[
-          { range:'0–2 yrs',  title:'Analyst',                          salary:'$90K–$115K' },
-          { range:'3–4 yrs',  title:'Consultant',                       salary:'$150K–$210K' },
-          { range:'5–7 yrs',  title:'Project Leader',                   salary:'$200K–$320K' },
-          { range:'8–10 yrs', title:'Principal',                        salary:'$320K–$500K' },
-          { range:'10+ yrs',  title:'Partner / Managing Director',      salary:'$600K–$2M+' },
+          { range:'Year 0–2',  title:'Analyst',                     salary:'$90K–$115K',  desc:'Conduct competitive benchmarking, build analytical frameworks, and synthesize insights into crisp executive-level presentations.' },
+          { range:'Year 3–5',  title:'Consultant',                  salary:'$150K–$210K', desc:'Own strategy modules end-to-end, facilitate CEO and board workshops, and develop a distinctive point of view on key strategic questions.' },
+          { range:'Year 6–9',  title:'Project Leader',              salary:'$200K–$320K', desc:'Lead strategy projects for Fortune 500 clients, develop C-suite relationships, and mentor consultant-level staff.' },
+          { range:'Year 10–14',title:'Principal',                   salary:'$320K–$500K', desc:'Generate new mandates, develop sector thought leadership, and lead the firm\'s relationship with anchor clients.' },
+          { range:'Year 15+',  title:'Partner / Managing Director', salary:'$600K–$2M+',  desc:'Build and lead a practice area, advise governments and global CEOs, and shape the firm\'s strategic priorities.' },
         ]},
       { id:'ops_manager', title:'Operations Manager', cat:'consulting', emoji:'🏭',
         desc:'Streamline business processes, eliminate waste, and build systems that scale with efficiency.',
         v:[7,4,6,7,8,4,5,4],
         daily:'Analyze operational bottlenecks, lead process improvement projects, manage cross-functional teams, track KPIs, and report on efficiency gains to senior leadership.',
         levels:[
-          { range:'0–2 yrs',  title:'Operations Analyst',               salary:'$55K–$75K' },
-          { range:'3–4 yrs',  title:'Operations Manager',               salary:'$75K–$105K' },
-          { range:'5–7 yrs',  title:'Senior Operations Manager',        salary:'$105K–$145K' },
-          { range:'8–10 yrs', title:'Director of Operations',           salary:'$145K–$210K' },
-          { range:'10+ yrs',  title:'VP of Operations / COO',           salary:'$200K–$500K+' },
+          { range:'Year 0–2',  title:'Operations Analyst',          salary:'$55K–$75K',   desc:'Map process flows, analyze operational data, build tracking dashboards, and identify inefficiencies under manager guidance.' },
+          { range:'Year 3–5',  title:'Operations Manager',          salary:'$75K–$105K',  desc:'Lead process improvement initiatives, manage a small team, own KPI reporting, and drive measurable efficiency gains.' },
+          { range:'Year 6–9',  title:'Sr. Operations Manager',      salary:'$105K–$145K', desc:'Manage complex cross-functional projects, build scalable operational playbooks, and align teams on performance goals.' },
+          { range:'Year 10–14',title:'Director of Operations',      salary:'$145K–$210K', desc:'Lead the operations function for a major business unit, set strategy, manage $50M+ budgets, and present to the C-suite.' },
+          { range:'Year 15+',  title:'VP of Operations / COO',      salary:'$200K–$500K+',desc:'Own operational excellence for the entire company, serve as the CEO\'s right hand, and build the infrastructure for hypergrowth.' },
         ]},
       { id:'supply_chain', title:'Supply Chain Manager', cat:'consulting', emoji:'🔗',
         desc:'Orchestrate global logistics networks to deliver goods faster, cheaper, and more reliably.',
         v:[7,3,5,6,9,4,3,5],
         daily:'Coordinate with suppliers and logistics partners, track inventory, resolve supply disruptions, run demand forecasting models, and optimize procurement costs.',
         levels:[
-          { range:'0–2 yrs',  title:'Supply Chain Analyst',             salary:'$55K–$80K' },
-          { range:'3–4 yrs',  title:'Supply Chain Manager',             salary:'$80K–$115K' },
-          { range:'5–7 yrs',  title:'Senior Supply Chain Manager',      salary:'$115K–$155K' },
-          { range:'8–10 yrs', title:'Director of Supply Chain',         salary:'$155K–$220K' },
-          { range:'10+ yrs',  title:'VP of Supply Chain / COO',         salary:'$220K–$450K+' },
+          { range:'Year 0–2',  title:'Supply Chain Analyst',        salary:'$55K–$80K',   desc:'Track inventory and supplier performance, run demand forecasts, analyze logistics costs, and support procurement negotiations.' },
+          { range:'Year 3–5',  title:'Supply Chain Manager',        salary:'$80K–$115K',  desc:'Manage vendor relationships, lead network optimization projects, and implement inventory management systems.' },
+          { range:'Year 6–9',  title:'Sr. Supply Chain Manager',    salary:'$115K–$155K', desc:'Oversee end-to-end supply chain for major product lines, run risk mitigation strategies, and lead cross-functional teams.' },
+          { range:'Year 10–14',title:'Director of Supply Chain',    salary:'$155K–$220K', desc:'Set global sourcing strategy, manage $500M+ in procurement, and lead transformational supply chain modernization programs.' },
+          { range:'Year 15+',  title:'VP of Supply Chain / COO',    salary:'$220K–$450K+',desc:'Own the global supply network as an executive, sit at the boardroom table, and build a supply chain as a competitive moat.' },
         ]},
       { id:'biz_dev', title:'Business Development Mgr', cat:'consulting', emoji:'🤝',
         desc:'Identify growth opportunities, forge strategic partnerships, and expand commercial footprints.',
         v:[6,6,8,7,4,7,5,2],
         daily:'Prospect and pitch potential partners, negotiate commercial agreements, manage the partner pipeline, run cross-functional alignment meetings, and track revenue growth.',
         levels:[
-          { range:'0–2 yrs',  title:'BD Representative',                salary:'$55K–$80K' },
-          { range:'3–4 yrs',  title:'Business Development Manager',     salary:'$80K–$130K' },
-          { range:'5–7 yrs',  title:'Senior BD Manager / Director',     salary:'$130K–$200K' },
-          { range:'8–10 yrs', title:'VP of Business Development',       salary:'$200K–$350K' },
-          { range:'10+ yrs',  title:'Chief Business Officer',           salary:'$300K–$700K+' },
+          { range:'Year 0–2',  title:'BD Representative',           salary:'$55K–$80K',   desc:'Cold outreach to prospects, qualify partnership opportunities, support senior BD leads on contract negotiations.' },
+          { range:'Year 3–5',  title:'BD Manager',                  salary:'$80K–$130K',  desc:'Own the partnership pipeline, negotiate commercial deals, and close strategic agreements that drive measurable revenue growth.' },
+          { range:'Year 6–9',  title:'Senior BD Manager / Director',salary:'$130K–$200K', desc:'Lead multi-stakeholder partnership negotiations, develop go-to-market strategies with major partners, and manage a BD team.' },
+          { range:'Year 10–14',title:'VP of Business Development',  salary:'$200K–$350K', desc:'Set the BD strategy for the company, build C-suite partner relationships, and oversee a portfolio generating $100M+ in ARR.' },
+          { range:'Year 15+',  title:'Chief Business Officer',      salary:'$300K–$700K+',desc:'Own all commercial partnerships at the executive level, shape corporate strategy through M&A and strategic alliances.' },
         ]},
 
       // HEALTHCARE
+      // NOTE: Medical careers include education years — compare directly with other fields.
+      // By Year 12, an investment banker is an MD earning $800K+; a surgeon is JUST starting
+      // their attending career at $350K. The long training is part of the deal.
       { id:'surgeon', title:'Surgeon', cat:'healthcare', emoji:'🔪',
         desc:'Perform life-saving and complex surgical procedures requiring extraordinary precision and composure.',
         v:[8,4,4,7,8,3,6,9],
         daily:'Perform surgical procedures in the OR, conduct pre-op consultations and post-op rounds, review medical imaging, and collaborate with the surgical and anesthesia teams.',
         levels:[
-          { range:'Med School + Residency', title:'Resident / Fellow',  salary:'$55K–$85K' },
-          { range:'1–3 yrs attending',      title:'Attending Surgeon',  salary:'$350K–$550K' },
-          { range:'4–8 yrs',                title:'Senior Attending',   salary:'$450K–$700K' },
-          { range:'9+ yrs',  title:'Department Chief / Professor',      salary:'$600K–$1.5M+' },
+          { range:'Year 0–4',  title:'Medical Student',             salary:'$0 (+ $200–$300K debt)', desc:'Complete 2 years of medical science coursework followed by 2 years of clinical rotations across all major specialties before matching to surgery residency.' },
+          { range:'Year 4–9',  title:'General Surgery Resident',    salary:'$60K–$85K',              desc:'Train in the operating room under close supervision, working 60–80 hour weeks learning the full spectrum of surgical procedures while on call nights and weekends.' },
+          { range:'Year 9–12', title:'Fellowship (Subspecialty)',   salary:'$70K–$95K',              desc:'Specialize in a surgical subspecialty (cardiac, neurosurgery, etc.), perform complex cases independently, and begin publishing clinical research.' },
+          { range:'Year 12–18',title:'Attending Surgeon',           salary:'$350K–$550K',            desc:'Operate independently, run your own clinic, supervise residents, and build your surgical volume and specialty reputation at a hospital.' },
+          { range:'Year 18+',  title:'Senior Attending / Chief',    salary:'$600K–$1.5M+',           desc:'Lead a surgical division or department, train the next generation of surgeons, and drive clinical research at a major academic medical center.' },
         ]},
       { id:'physician', title:'Physician / Doctor', cat:'healthcare', emoji:'🩺',
         desc:'Diagnose and treat patients while building lasting relationships and improving lives every single day.',
         v:[8,3,6,5,7,3,8,7],
         daily:'See patients in clinic or hospital, review lab results and imaging, prescribe and adjust treatments, coordinate care with specialists, and complete clinical documentation.',
         levels:[
-          { range:'Residency (3–7 yrs)',   title:'Resident / Fellow',   salary:'$60K–$90K' },
-          { range:'1–3 yrs attending',     title:'Attending Physician', salary:'$230K–$350K' },
-          { range:'4–8 yrs',               title:'Senior Physician',    salary:'$300K–$450K' },
-          { range:'9+ yrs',  title:'Medical Director / Dept. Chair',    salary:'$400K–$700K+' },
+          { range:'Year 0–4',  title:'Medical Student',             salary:'$0 (+ $200–$300K debt)', desc:'Master anatomy, physiology, and clinical medicine across 2 years of coursework and 2 years of hospital rotations.' },
+          { range:'Year 4–8',  title:'Resident / Fellow',           salary:'$60K–$90K',              desc:'Practice medicine under supervision in your chosen specialty (internal medicine, pediatrics, etc.), managing real patients across 3–7 years of training.' },
+          { range:'Year 8–14', title:'Attending Physician (Early)', salary:'$230K–$350K',            desc:'See your own panel of patients, make fully independent clinical decisions, and build your practice at a hospital or clinic.' },
+          { range:'Year 14–22',title:'Attending Physician (Senior)',salary:'$300K–$450K',            desc:'Run a well-established practice, supervise residents and students, develop subspecialty expertise, and pursue leadership roles.' },
+          { range:'Year 22+',  title:'Medical Director / Dept. Chair',salary:'$400K–$700K+',         desc:'Lead a clinical department, set quality and safety standards, shape hospital strategy, and mentor the next generation of physicians.' },
         ]},
       { id:'nurse', title:'Nurse', cat:'healthcare', emoji:'💊',
         desc:'Deliver compassionate, precision-driven hands-on patient care across diverse clinical settings.',
         v:[5,2,7,4,7,2,10,5],
         daily:'Assess and monitor patients, administer medications and treatments, coordinate with physicians, educate patients and families, and document care in the medical record.',
         levels:[
-          { range:'0–2 yrs',  title:'Registered Nurse (RN)',            salary:'$60K–$80K' },
-          { range:'3–5 yrs',  title:'Experienced RN / Charge Nurse',    salary:'$80K–$100K' },
-          { range:'6–9 yrs',  title:'Nurse Practitioner (NP)',          salary:'$100K–$135K' },
-          { range:'10+ yrs',  title:'Director of Nursing / CNO',        salary:'$130K–$200K+' },
+          { range:'Year 0–2',  title:'Registered Nurse (RN)',        salary:'$60K–$80K',   desc:'Provide direct patient care under supervision, administer medications, assess patient conditions, and document in the electronic health record.' },
+          { range:'Year 3–7',  title:'Experienced RN / Charge Nurse',salary:'$80K–$100K',  desc:'Lead a patient care unit during shifts, mentor new nurses, respond to complex medical situations, and liaise between physicians and families.' },
+          { range:'Year 8–13', title:'Nurse Practitioner (NP)',      salary:'$100K–$135K', desc:'Diagnose and treat patients independently after completing a graduate NP program, prescribe medications, and manage a patient panel.' },
+          { range:'Year 14+',  title:'Director of Nursing / CNO',    salary:'$130K–$200K+',desc:'Lead nursing staff across a hospital unit or system, set clinical standards, manage budgets, and drive patient safety initiatives.' },
         ]},
       { id:'therapist', title:'Therapist / Psychologist', cat:'healthcare', emoji:'🧠',
         desc:'Help individuals overcome mental health challenges and build resilience through evidence-based therapy.',
         v:[6,5,7,4,5,3,10,2],
         daily:'Conduct individual and group therapy sessions, write clinical notes, develop treatment plans, coordinate with psychiatrists, and complete insurance documentation.',
         levels:[
-          { range:'0–2 yrs',  title:'Licensed Therapist (LCSW/LPC)',    salary:'$55K–$75K' },
-          { range:'3–5 yrs',  title:'Senior Therapist / Supervisor',    salary:'$75K–$100K' },
-          { range:'6–9 yrs',  title:'Psychologist (PhD) / Lead Clinician',salary:'$95K–$140K' },
-          { range:'10+ yrs',  title:'Clinical Director / Private Practice',salary:'$130K–$300K+' },
+          { range:'Year 0–3',  title:'Graduate Student (MSW/MFT)',  salary:'$0–$25K (stipend)', desc:'Complete a master\'s-level clinical program with supervised practicum hours in counseling centers, hospitals, or community agencies.' },
+          { range:'Year 3–7',  title:'Licensed Therapist (LCSW)',   salary:'$55K–$75K',         desc:'Accumulate supervised clinical hours toward full licensure, conduct individual and group therapy, and develop a specialization (trauma, CBT, etc.).' },
+          { range:'Year 8–13', title:'Senior Therapist / Supervisor',salary:'$75K–$100K',       desc:'Carry a full caseload independently, supervise pre-licensed clinicians, and develop a recognized clinical expertise.' },
+          { range:'Year 14+',  title:'Clinical Director / Private Practice',salary:'$130K–$300K+',desc:'Lead a clinical team at a large agency, or build a thriving private practice with a six-figure income on your own schedule.' },
         ]},
       { id:'pharmacist', title:'Pharmacist', cat:'healthcare', emoji:'💉',
         desc:'Ensure safe and effective medication use while counseling patients and supporting clinical care teams.',
         v:[7,2,5,4,9,2,7,6],
         daily:'Review and dispense prescriptions, counsel patients on medications and interactions, verify clinical orders in hospital settings, and collaborate with care teams on drug therapy.',
         levels:[
-          { range:'0–2 yrs',  title:'Staff Pharmacist',                 salary:'$120K–$140K' },
-          { range:'3–5 yrs',  title:'Senior Pharmacist',                salary:'$135K–$160K' },
-          { range:'6–9 yrs',  title:'Clinical Pharmacist / Specialist', salary:'$150K–$185K' },
-          { range:'10+ yrs',  title:'Director of Pharmacy',             salary:'$180K–$250K+' },
+          { range:'Year 0–4',  title:'PharmD Student',               salary:'$0 (+ $120–$180K debt)', desc:'Complete a 4-year Doctor of Pharmacy program covering pharmacology, clinical rotations, and advanced drug therapy management.' },
+          { range:'Year 4–8',  title:'Staff Pharmacist',             salary:'$120K–$140K',             desc:'Dispense medications, counsel patients, verify clinical orders, and collaborate with physicians in retail or hospital settings.' },
+          { range:'Year 9–14', title:'Senior / Clinical Pharmacist', salary:'$150K–$185K',             desc:'Specialize in a clinical area (oncology, critical care), join formulary committees, and provide drug therapy consultations to physicians.' },
+          { range:'Year 15+',  title:'Director of Pharmacy',         salary:'$180K–$250K+',            desc:'Lead the pharmacy department, manage formulary and contracting, set medication safety policy, and report to hospital administration.' },
         ]},
       { id:'medical_researcher', title:'Medical Researcher', cat:'healthcare', emoji:'🧬',
         desc:'Advance the frontier of medicine through clinical trials, laboratory research, and scientific publication.',
         v:[10,5,2,4,7,4,5,8],
         daily:'Design and run experiments, analyze trial or lab data, write grant applications, publish findings in peer-reviewed journals, and present at scientific conferences.',
         levels:[
-          { range:'Postdoc (2–5 yrs)',     title:'Postdoctoral Researcher',salary:'$55K–$80K' },
-          { range:'1–5 yrs faculty',       title:'Assistant Professor',   salary:'$80K–$130K' },
-          { range:'6–10 yrs',              title:'Associate Professor',   salary:'$130K–$200K' },
-          { range:'10+ yrs',  title:'Full Professor / Principal Investigator',salary:'$180K–$400K+' },
+          { range:'Year 0–5',  title:'PhD Student',                  salary:'$25K–$40K (stipend)', desc:'Complete coursework, rotations, and original dissertation research in a biomedical PhD program over 4–6 years.' },
+          { range:'Year 5–9',  title:'Postdoctoral Researcher',      salary:'$55K–$80K',           desc:'Develop an independent research program, publish high-impact papers, and compete for independent faculty positions or industry roles.' },
+          { range:'Year 9–16', title:'Assistant Professor',          salary:'$80K–$130K',          desc:'Run your own lab, teach graduate students, write NIH grants, publish in top journals, and fight for tenure over 5–7 years.' },
+          { range:'Year 17–24',title:'Associate Professor',          salary:'$130K–$200K',         desc:'Achieve tenure, build a nationally recognized research program, train PhD students, and serve on journal editorial boards.' },
+          { range:'Year 25+',  title:'Full Professor / PI',          salary:'$180K–$400K+',        desc:'Lead a major research institute, advise on national science policy, and mentor the field\'s next generation of researchers.' },
         ]},
       { id:'biomedical_eng', title:'Biomedical Engineer', cat:'healthcare', emoji:'🦾',
         desc:'Design medical devices, diagnostics, and therapeutic technologies that genuinely save and enhance lives.',
         v:[8,6,3,4,7,4,5,9],
         daily:'Design and test medical devices, run bench experiments, write regulatory submissions (FDA/CE), collaborate with clinical teams, and iterate on prototypes.',
         levels:[
-          { range:'0–2 yrs',  title:'Biomedical Engineer I',            salary:'$70K–$95K' },
-          { range:'3–4 yrs',  title:'Biomedical Engineer II',           salary:'$95K–$125K' },
-          { range:'5–7 yrs',  title:'Senior Biomedical Engineer',       salary:'$125K–$165K' },
-          { range:'8–10 yrs', title:'Principal Engineer',               salary:'$160K–$220K' },
-          { range:'10+ yrs',  title:'R&D Director / VP Engineering',    salary:'$220K–$400K+' },
+          { range:'Year 0–2',  title:'Biomedical Engineer I',        salary:'$70K–$95K',   desc:'Prototype and bench-test medical devices, write test protocols, support FDA 510(k) submissions, and learn regulatory frameworks.' },
+          { range:'Year 3–5',  title:'Biomedical Engineer II',       salary:'$95K–$125K',  desc:'Lead device development work streams, own design history files, coordinate clinical evaluations, and troubleshoot field issues.' },
+          { range:'Year 6–9',  title:'Senior Biomedical Engineer',   salary:'$125K–$165K', desc:'Drive novel device development from concept to regulatory approval, mentor junior engineers, and represent engineering in clinical partnerships.' },
+          { range:'Year 10–14',title:'Principal Engineer',           salary:'$160K–$220K', desc:'Set technical strategy for product platforms, navigate complex regulatory pathways, and influence the company\'s technology roadmap.' },
+          { range:'Year 15+',  title:'R&D Director / VP Engineering',salary:'$220K–$400K+',desc:'Lead the entire R&D organization, build the innovation pipeline, and represent engineering at the board and investor level.' },
         ]},
       { id:'social_worker', title:'Social Worker', cat:'healthcare', emoji:'🤲',
         desc:'Support vulnerable individuals and families through crisis intervention and community resource navigation.',
         v:[4,4,8,4,6,3,10,2],
         daily:'Assess client needs, develop care plans, connect clients to community resources, conduct home visits, attend case conferences, and complete regulatory documentation.',
         levels:[
-          { range:'0–2 yrs',  title:'Social Worker (BSW/MSW)',          salary:'$45K–$60K' },
-          { range:'3–5 yrs',  title:'Licensed Clinical Social Worker',  salary:'$60K–$80K' },
-          { range:'6–9 yrs',  title:'Senior Social Worker / Supervisor',salary:'$80K–$105K' },
-          { range:'10+ yrs',  title:'Director of Social Services',      salary:'$100K–$160K+' },
+          { range:'Year 0–3',  title:'MSW Student / Intern',         salary:'$0–$20K (stipend)', desc:'Complete a Master of Social Work program with field placements in hospitals, schools, or community agencies.' },
+          { range:'Year 3–7',  title:'Licensed Social Worker',       salary:'$45K–$60K',         desc:'Carry a full caseload of clients, complete supervision hours toward LCSW licensure, and develop crisis intervention skills.' },
+          { range:'Year 8–13', title:'Clinical Social Worker (LCSW)',salary:'$60K–$80K',         desc:'Practice independently, provide clinical counseling, manage complex cases, and begin supervisory responsibilities.' },
+          { range:'Year 14+',  title:'Director of Social Services',      salary:'$100K–$160K+', desc:'Lead a social services department at a nonprofit or public agency, set program strategy, manage budgets, and advocate for policy change.' },
         ]},
 
       // LAW
+      // NOTE: Law school (Year 0–3) is included. Compare: by Year 8, a biglaw associate earns
+      // $300K+, while a public defender earns $70–95K — same training, very different paths.
       { id:'lawyer', title:'Lawyer / Attorney', cat:'law', emoji:'⚖️',
         desc:'Advocate for clients, navigate complex legal frameworks, and shape outcomes in business, crime, and policy.',
         v:[9,5,6,6,9,4,5,3],
         daily:'Research case law, draft contracts and legal briefs, advise clients on strategy, attend depositions and court hearings, and negotiate deal terms with opposing counsel.',
         levels:[
-          { range:'0–2 yrs',  title:'Associate Attorney',               salary:'$80K–$215K' },
-          { range:'3–5 yrs',  title:'Mid-level Associate',              salary:'$190K–$370K' },
-          { range:'6–8 yrs',  title:'Senior Associate / Counsel',       salary:'$300K–$500K' },
-          { range:'9–10 yrs', title:'Non-equity Partner',               salary:'$400K–$700K' },
-          { range:'10+ yrs',  title:'Equity Partner',                   salary:'$700K–$5M+' },
+          { range:'Year 0–3',  title:'Law Student (JD)',               salary:'$0 (+ $150–$250K debt)', desc:'Complete 3 years of law school including 1L fundamentals, 2L/3L clinics, moot court, and law review before passing the bar exam.' },
+          { range:'Year 3–7',  title:'Associate Attorney',             salary:'$80K–$215K',             desc:'At BigLaw: research, draft complex contracts and briefs, bill 2,000+ hours annually, and develop expertise in your practice area.' },
+          { range:'Year 8–13', title:'Senior Associate / Counsel',     salary:'$300K–$500K',            desc:'Lead deals and litigation matters, manage junior associates, build client relationships, and position yourself for partnership.' },
+          { range:'Year 14–18',title:'Non-equity Partner',             salary:'$400K–$700K',            desc:'Lead your own client matters, generate new business, and begin to build the revenue book needed for equity partnership.' },
+          { range:'Year 19+',  title:'Equity Partner',                 salary:'$700K–$5M+',             desc:'Own a multi-million dollar client book, receive a profit share of the firm, and set the culture and strategy of your practice group.' },
         ]},
       { id:'judge', title:'Judge', cat:'law', emoji:'🔨',
         desc:'Interpret and apply the law with impartiality and rigorous intellectual discipline in courtroom proceedings.',
         v:[9,3,4,7,10,2,5,2],
         daily:'Preside over court proceedings, review case filings and legal arguments, write judicial opinions, manage courtroom conduct, and deliberate on complex legal questions.',
         levels:[
-          { range:'Entry',    title:'Magistrate / ALJ',                 salary:'$90K–$150K' },
-          { range:'Mid',      title:'State Trial Court Judge',           salary:'$150K–$220K' },
-          { range:'Senior',   title:'State Appellate Judge',             salary:'$200K–$280K' },
-          { range:'Federal',  title:'U.S. District Court Judge',         salary:'$250K–$285K' },
-          { range:'Apex',     title:'U.S. Circuit / Supreme Court',      salary:'$280K–$330K' },
+          { range:'Year 0–3',  title:'Law Student (JD)',               salary:'$0 (+ $150–$250K debt)', desc:'Earn the JD degree — the required credential for judicial appointment or election in virtually all U.S. jurisdictions.' },
+          { range:'Year 3–18', title:'Practicing Attorney',            salary:'$80K–$400K',             desc:'Build a legal career (typically 10–15 years) to develop the courtroom experience and professional reputation required for judicial appointment.' },
+          { range:'Year 18–25',title:'Magistrate / ALJ',               salary:'$90K–$150K',             desc:'Handle lower-stakes cases, learn the judicial process from the bench, and develop a reputation for impartiality and intellectual rigor.' },
+          { range:'Year 25–30',title:'State Trial / Appellate Judge',  salary:'$150K–$280K',            desc:'Preside over criminal and civil trials or appeals, write influential opinions, and shape the law in your jurisdiction.' },
+          { range:'Year 30+',  title:'U.S. Federal / Circuit Judge',   salary:'$250K–$330K',            desc:'Handle federal constitutional matters, write landmark opinions, and potentially ascend to circuit court or the Supreme Court.' },
         ]},
       { id:'public_defender', title:'Public Defender', cat:'law', emoji:'🛡️',
         desc:'Provide vigorous legal defense to individuals who cannot afford private counsel — a calling, not just a job.',
         v:[7,5,7,5,7,4,8,2],
         daily:'Meet with incarcerated clients, review evidence and police reports, negotiate plea deals, prepare for and conduct trial, and file motions and appeals.',
         levels:[
-          { range:'0–2 yrs',  title:'Staff Public Defender',            salary:'$50K–$70K' },
-          { range:'3–5 yrs',  title:'Senior Public Defender',           salary:'$70K–$95K' },
-          { range:'6–9 yrs',  title:'Supervising Attorney',             salary:'$90K–$125K' },
-          { range:'10+ yrs',  title:'Chief Public Defender',            salary:'$120K–$200K+' },
+          { range:'Year 0–3',  title:'Law Student (JD)',               salary:'$0 (+ $150–$250K debt)', desc:'Earn the JD, participate in criminal defense clinics, and develop advocacy skills through moot court and pro-bono work.' },
+          { range:'Year 3–8',  title:'Staff Public Defender',          salary:'$50K–$70K',              desc:'Carry a heavy caseload of misdemeanor and felony cases, develop rapid trial skills, and fight hard for every client.' },
+          { range:'Year 9–14', title:'Senior Public Defender',         salary:'$70K–$125K',             desc:'Handle the most complex capital and federal cases, supervise junior attorneys, and develop specialized criminal defense expertise.' },
+          { range:'Year 15+',  title:'Chief Public Defender',          salary:'$120K–$200K+',           desc:'Lead a public defender office, manage dozens of attorneys and staff, advocate for systemic criminal justice reform.' },
         ]},
 
       // EDUCATION
+      // NOTE: Academic track includes PhD years (Year 0–5) before a faculty position.
+      // Compare: by Year 10, a banker earns $500K+; a new assistant professor earns $80–130K.
       { id:'professor', title:'Professor / Academic', cat:'education', emoji:'🎓',
         desc:'Advance human knowledge through research and teach the next generation at a leading university.',
         v:[9,6,5,5,6,4,6,6],
         daily:'Teach undergraduate and graduate courses, conduct original research, write academic papers, apply for grants, advise students, and serve on departmental committees.',
         levels:[
-          { range:'Postdoc (2–5 yrs)',    title:'Postdoctoral Researcher',  salary:'$55K–$80K' },
-          { range:'1–7 yrs (faculty)',    title:'Assistant Professor',       salary:'$80K–$130K' },
-          { range:'8–14 yrs',             title:'Associate Professor',       salary:'$120K–$185K' },
-          { range:'15+ yrs',              title:'Full Professor',            salary:'$175K–$350K+' },
+          { range:'Year 0–5',  title:'PhD Student',                   salary:'$25K–$40K (stipend)', desc:'Conduct dissertation research over 4–6 years, publish initial papers, teach as a TA, and develop the expertise needed for a faculty job.' },
+          { range:'Year 5–9',  title:'Postdoctoral Researcher',       salary:'$55K–$80K',           desc:'Run independent research in a top lab, publish in high-impact journals, apply for faculty positions, and build your professional network.' },
+          { range:'Year 9–17', title:'Assistant Professor',           salary:'$80K–$130K',          desc:'Build your research program, teach courses, apply for NSF/NIH grants, publish prolifically, and compete for tenure over 6–8 years.' },
+          { range:'Year 18–25',title:'Associate Professor (Tenured)', salary:'$120K–$185K',         desc:'Earn tenure and job security, lead a recognized research group, advise PhD students, and take on national service roles.' },
+          { range:'Year 26+',  title:'Full Professor',                salary:'$175K–$350K+',        desc:'Lead a premier research program, advise doctoral students, give keynotes internationally, and shape the direction of your field.' },
         ]},
       { id:'teacher', title:'K–12 Teacher', cat:'education', emoji:'✏️',
         desc:'Shape young minds, ignite curiosity, and build foundational knowledge for generations to come.',
         v:[5,7,8,5,6,3,9,2],
         daily:'Plan and deliver lessons, grade assignments, meet with parents and administrators, run extracurricular activities, and differentiate instruction for diverse learners.',
         levels:[
-          { range:'0–2 yrs',  title:'Teacher (Entry Level)',             salary:'$40K–$55K' },
-          { range:'3–6 yrs',  title:'Experienced Teacher',               salary:'$55K–$72K' },
-          { range:'7–12 yrs', title:'Lead Teacher / Dept. Head',         salary:'$72K–$90K' },
-          { range:'13+ yrs',  title:'Instructional Coach / Master Teacher',salary:'$90K–$120K+' },
+          { range:'Year 0–3',  title:'Teacher (Entry Level)',          salary:'$40K–$55K',   desc:'Develop classroom management, build lesson plans, and learn to differentiate instruction for students with diverse learning needs.' },
+          { range:'Year 4–9',  title:'Experienced Teacher',            salary:'$55K–$72K',   desc:'Refine teaching craft, mentor student teachers, lead grade-level teams, and develop elective or AP curricula in your subject area.' },
+          { range:'Year 10–15',title:'Lead Teacher / Dept. Head',     salary:'$72K–$90K',   desc:'Lead a subject department, conduct peer observations, co-design school-wide curriculum, and bridge between teachers and administration.' },
+          { range:'Year 16+',  title:'Instructional Coach / Master Teacher',salary:'$90K–$120K+',desc:'Coach teachers school-wide on pedagogy and differentiation, analyze school data, and lead professional development programs.' },
         ]},
       { id:'principal', title:'School Principal', cat:'education', emoji:'🏫',
         desc:'Lead an entire school community, support teachers, and champion every student\'s success.',
         v:[6,5,8,8,7,4,8,2],
         daily:'Conduct teacher observations, manage school budgets, lead staff meetings, handle student discipline, meet with parents, and implement district-wide initiatives.',
         levels:[
-          { range:'0–3 yrs',  title:'Assistant Principal',               salary:'$75K–$95K' },
-          { range:'4–8 yrs',  title:'Principal',                         salary:'$95K–$130K' },
-          { range:'9–12 yrs', title:'Executive Principal / Director',    salary:'$130K–$165K' },
-          { range:'13+ yrs',  title:'Superintendent',                    salary:'$160K–$300K+' },
+          { range:'Year 0–8',  title:'Classroom Teacher',              salary:'$40K–$75K',   desc:'Build teaching excellence and earn a master\'s degree before transitioning into school administration.' },
+          { range:'Year 8–13', title:'Assistant Principal',            salary:'$75K–$95K',   desc:'Manage student discipline, support teacher development, run operational functions, and begin shaping school culture.' },
+          { range:'Year 14–20',title:'Principal',                      salary:'$95K–$130K',  desc:'Lead the full school community, set academic vision, manage budgets and staff, and drive measurable student achievement gains.' },
+          { range:'Year 21+',  title:'Superintendent',                 salary:'$160K–$300K+',desc:'Lead an entire school district, manage hundreds of staff and millions in budget, and set the educational agenda for your community.' },
         ]},
 
       // MEDIA & CREATIVE
@@ -543,74 +587,74 @@
         v:[5,8,7,4,4,6,7,2],
         daily:'Pitch story ideas, conduct source interviews, research background material, write and edit articles, fact-check, and meet publication deadlines.',
         levels:[
-          { range:'0–2 yrs',  title:'Staff Reporter',                    salary:'$40K–$60K' },
-          { range:'3–5 yrs',  title:'Senior Reporter',                   salary:'$60K–$85K' },
-          { range:'6–9 yrs',  title:'Editor / Senior Editor',            salary:'$85K–$130K' },
-          { range:'10+ yrs',  title:'Editor-in-Chief / Bureau Chief',    salary:'$130K–$250K+' },
+          { range:'Year 0–2',  title:'Staff Reporter',                   salary:'$40K–$60K',   desc:'Cover beats, file daily stories under tight deadlines, build a source network, and develop your investigative and writing voice.' },
+          { range:'Year 3–7',  title:'Senior Reporter',                  salary:'$60K–$85K',   desc:'Own marquee beat coverage, publish long-form investigations, break national stories, and begin contributing editorial leadership.' },
+          { range:'Year 8–13', title:'Editor / Senior Editor',           salary:'$85K–$130K',  desc:'Shape editorial strategy for a section, develop and edit reporters\' work, and drive coverage that influences public conversation.' },
+          { range:'Year 14+',  title:'Editor-in-Chief / Bureau Chief',   salary:'$130K–$250K+',desc:'Set the journalistic agenda for an entire outlet, manage dozens of reporters, and serve as the public editorial voice.' },
         ]},
       { id:'film_director', title:'Film Director', cat:'media', emoji:'🎬',
         desc:'Bring stories to life on screen with creative vision, emotional depth, and technical mastery.',
         v:[5,10,6,8,4,7,7,5],
         daily:'Review scripts, storyboard sequences, direct actors on set, review dailies with the cinematographer, and collaborate with editors in post-production.',
         levels:[
-          { range:'0–3 yrs',  title:'Assistant Director',                salary:'$40K–$80K' },
-          { range:'4–7 yrs',  title:'Independent Film Director',         salary:'$60K–$200K/project' },
-          { range:'8–12 yrs', title:'Feature Film Director',             salary:'$200K–$1M/project' },
-          { range:'13+ yrs',  title:'A-List Director',                   salary:'$5M–$30M+/project' },
+          { range:'Year 0–4',  title:'Assistant Director / PA',          salary:'$40K–$80K',      desc:'Coordinate daily on-set logistics, manage shot schedules, learn the craft from the ground up, and build industry relationships.' },
+          { range:'Year 5–10', title:'Independent Film Director',        salary:'$60K–$200K/proj',desc:'Direct short films and micro-budget features, submit to festivals, and build a reel that attracts studio attention.' },
+          { range:'Year 11–17',title:'Feature Film Director',            salary:'$200K–$1M/proj', desc:'Helm studio-backed feature films, collaborate with A-list talent, and develop your distinctive directorial voice.' },
+          { range:'Year 18+',  title:'A-List Director',                  salary:'$5M–$30M+/proj', desc:'Command massive production budgets, greenlight projects through your brand alone, and create films that define cultural moments.' },
         ]},
       { id:'graphic_designer', title:'Graphic Designer', cat:'media', emoji:'🖌️',
         desc:'Create visual identities, campaigns, and immersive experiences that communicate and captivate.',
         v:[3,10,4,3,5,5,5,5],
         daily:'Create visual concepts for brands, design layouts for digital and print, collaborate with clients and art directors, iterate based on feedback, and prepare production-ready files.',
         levels:[
-          { range:'0–2 yrs',  title:'Junior Graphic Designer',           salary:'$40K–$60K' },
-          { range:'3–4 yrs',  title:'Graphic Designer',                  salary:'$60K–$80K' },
-          { range:'5–7 yrs',  title:'Senior Designer',                   salary:'$80K–$110K' },
-          { range:'8–10 yrs', title:'Art Director',                      salary:'$100K–$150K' },
-          { range:'10+ yrs',  title:'Creative Director',                 salary:'$140K–$250K+' },
+          { range:'Year 0–2',  title:'Junior Graphic Designer',          salary:'$40K–$60K',   desc:'Execute design briefs, iterate on brand assets, master Adobe Creative Suite, and build a diverse design portfolio.' },
+          { range:'Year 3–5',  title:'Graphic Designer',                 salary:'$60K–$80K',   desc:'Lead design projects for clients or campaigns, develop brand systems, and contribute creatively to pitches.' },
+          { range:'Year 6–9',  title:'Senior Designer',                  salary:'$80K–$110K',  desc:'Own brand identity projects end-to-end, mentor junior designers, and develop multi-channel campaign concepts.' },
+          { range:'Year 10–14',title:'Art Director',                     salary:'$100K–$150K', desc:'Direct visual language for major brands, brief and oversee design teams, and shape the aesthetic of campaigns or products.' },
+          { range:'Year 15+',  title:'Creative Director',                salary:'$140K–$250K+',desc:'Lead the creative vision for an agency or brand, develop creative strategy at the executive level, and mentor a large creative team.' },
         ]},
       { id:'marketing_manager', title:'Marketing Manager', cat:'media', emoji:'📣',
         desc:'Build brands, launch campaigns, and drive growth through creative strategy and data-driven insights.',
         v:[6,8,7,6,5,6,5,3],
         daily:'Plan and execute marketing campaigns, manage budgets, analyze campaign performance, brief creative teams, coordinate with sales, and report results to leadership.',
         levels:[
-          { range:'0–2 yrs',  title:'Marketing Coordinator',             salary:'$50K–$70K' },
-          { range:'3–4 yrs',  title:'Marketing Manager',                 salary:'$70K–$100K' },
-          { range:'5–7 yrs',  title:'Senior Marketing Manager',          salary:'$100K–$140K' },
-          { range:'8–10 yrs', title:'Director of Marketing',             salary:'$140K–$200K' },
-          { range:'10+ yrs',  title:'VP of Marketing / CMO',             salary:'$200K–$500K+' },
+          { range:'Year 0–2',  title:'Marketing Coordinator',            salary:'$50K–$70K',   desc:'Execute campaign logistics, manage social and email calendars, track analytics, and support all marketing functions.' },
+          { range:'Year 3–5',  title:'Marketing Manager',                salary:'$70K–$100K',  desc:'Own end-to-end campaign execution, manage channel budgets, brief creative teams, and report ROI to senior leadership.' },
+          { range:'Year 6–9',  title:'Senior Marketing Manager',         salary:'$100K–$140K', desc:'Lead multi-channel marketing strategy for a business unit, mentor junior marketers, and own $1M+ campaign budgets.' },
+          { range:'Year 10–14',title:'Director of Marketing',            salary:'$140K–$200K', desc:'Set the brand and growth strategy for a major product line, manage a team of marketers, and report to the CMO.' },
+          { range:'Year 15+',  title:'VP of Marketing / CMO',            salary:'$200K–$500K+',desc:'Own the company\'s entire marketing and brand strategy, report to the CEO, and drive revenue growth through positioning and demand generation.' },
         ]},
       { id:'social_media_mgr', title:'Social Media Manager', cat:'media', emoji:'📱',
         desc:'Grow audiences, build vibrant communities, and tell brand stories across digital platforms.',
         v:[4,8,9,4,4,6,6,3],
         daily:'Create and schedule social content, engage with followers, track analytics, brief designers on creative assets, and report performance metrics to the marketing team.',
         levels:[
-          { range:'0–2 yrs',  title:'Social Media Coordinator',          salary:'$40K–$58K' },
-          { range:'3–4 yrs',  title:'Social Media Manager',              salary:'$58K–$80K' },
-          { range:'5–7 yrs',  title:'Senior Social Media Manager',       salary:'$80K–$110K' },
-          { range:'8–10 yrs', title:'Director of Social Media',          salary:'$110K–$160K' },
-          { range:'10+ yrs',  title:'VP of Social / Head of Brand',      salary:'$150K–$300K+' },
+          { range:'Year 0–2',  title:'Social Media Coordinator',         salary:'$40K–$58K',   desc:'Create and post daily content, respond to community comments, track engagement analytics, and learn platform algorithms.' },
+          { range:'Year 3–5',  title:'Social Media Manager',             salary:'$58K–$80K',   desc:'Own the brand\'s full social presence, develop content strategy, manage influencer relationships, and drive follower growth.' },
+          { range:'Year 6–9',  title:'Senior Social Media Manager',      salary:'$80K–$110K',  desc:'Lead a team of social specialists, manage multi-platform campaigns with large budgets, and report strategy to CMO-level leadership.' },
+          { range:'Year 10–14',title:'Director of Social Media',         salary:'$110K–$160K', desc:'Set the company\'s social and community strategy, align content with broader brand and product marketing, and manage a large team.' },
+          { range:'Year 15+',  title:'VP of Social / Head of Brand',     salary:'$150K–$300K+',desc:'Own brand voice and social strategy at the executive level, manage agency relationships, and shape company culture externally.' },
         ]},
       { id:'ad_executive', title:'Advertising Executive', cat:'media', emoji:'📺',
         desc:'Create and sell award-winning campaigns that shape culture and move billions of consumers.',
         v:[6,9,8,7,4,7,5,2],
         daily:'Lead client pitches and account reviews, brief the creative team on campaign concepts, present work to clients, manage budgets, and negotiate media placements.',
         levels:[
-          { range:'0–2 yrs',  title:'Account Coordinator / Executive',   salary:'$45K–$65K' },
-          { range:'3–4 yrs',  title:'Account Manager',                   salary:'$65K–$90K' },
-          { range:'5–7 yrs',  title:'Account Director',                  salary:'$90K–$140K' },
-          { range:'8–10 yrs', title:'VP / Group Account Director',       salary:'$140K–$220K' },
-          { range:'10+ yrs',  title:'Managing Director / CCO',           salary:'$220K–$500K+' },
+          { range:'Year 0–2',  title:'Account Coordinator / AE',         salary:'$45K–$65K',   desc:'Manage project timelines and client communications, coordinate internal teams, and learn every aspect of the agency workflow.' },
+          { range:'Year 3–5',  title:'Account Manager',                  salary:'$65K–$90K',   desc:'Own day-to-day client relationships, present creative work, manage campaign budgets, and develop strategic recommendations.' },
+          { range:'Year 6–9',  title:'Account Director',                 salary:'$90K–$140K',  desc:'Lead integrated campaign pitches, manage junior account teams, and build senior relationships with major client brand teams.' },
+          { range:'Year 10–14',title:'VP / Group Account Director',      salary:'$140K–$220K', desc:'Oversee a portfolio of agency accounts generating $50M+ in billings, recruit talent, and set client service standards.' },
+          { range:'Year 15+',  title:'Managing Director / CCO',          salary:'$220K–$500K+',desc:'Lead the agency\'s business development, set creative and client strategy, and build an award-winning culture.' },
         ]},
       { id:'sports_agent', title:'Sports Agent', cat:'media', emoji:'🏆',
         desc:'Negotiate multi-million dollar contracts and manage the careers of elite professional athletes.',
         v:[5,6,9,6,4,7,5,2],
         daily:'Negotiate contracts with teams and leagues, advise clients on endorsements, manage athlete PR and personal brand, and network at games and industry events.',
         levels:[
-          { range:'0–2 yrs',  title:'Agent Trainee / Junior Agent',      salary:'$40K–$70K' },
-          { range:'3–5 yrs',  title:'Sports Agent',                      salary:'$70K–$200K' },
-          { range:'6–9 yrs',  title:'Senior Agent',                      salary:'$200K–$700K' },
-          { range:'10+ yrs',  title:'Partner / Managing Agent',          salary:'$500K–$5M+' },
+          { range:'Year 0–3',  title:'Agent Trainee / Junior Agent',     salary:'$40K–$70K',   desc:'Assist senior agents on contract negotiations, build relationships with college and minor league athletes, and earn your NFLPA/NBPA certification.' },
+          { range:'Year 4–8',  title:'Sports Agent',                     salary:'$70K–$200K',  desc:'Represent your own roster of athletes, negotiate multi-year contracts, secure endorsement deals, and build your client brand.' },
+          { range:'Year 9–14', title:'Senior Agent',                     salary:'$200K–$700K', desc:'Represent elite athletes with $50M+ contracts, manage major brand endorsements, and develop your roster strategically.' },
+          { range:'Year 15+',  title:'Partner / Managing Agent',         salary:'$500K–$5M+',  desc:'Lead an agency, represent marquee athletes, and take commission on hundreds of millions in annual contract value.' },
         ]},
 
       // ENGINEERING & SCIENCE
@@ -619,55 +663,55 @@
         v:[8,5,4,5,8,3,3,9],
         daily:'Review site surveys and geotechnical reports, design structural or infrastructure systems, coordinate with contractors on construction, and ensure code compliance.',
         levels:[
-          { range:'0–2 yrs',  title:'Engineer I (EIT)',                  salary:'$65K–$85K' },
-          { range:'3–5 yrs',  title:'Engineer II / PE',                  salary:'$85K–$115K' },
-          { range:'6–9 yrs',  title:'Senior Engineer',                   salary:'$110K–$155K' },
-          { range:'10–14 yrs',title:'Principal Engineer / PM',           salary:'$150K–$210K' },
-          { range:'15+ yrs',  title:'Director of Engineering',           salary:'$200K–$350K+' },
+          { range:'Year 0–2',  title:'Engineer I (EIT)',                 salary:'$65K–$85K',   desc:'Perform engineering calculations, assist on design drawings, gain field experience, and work toward your Professional Engineer (PE) license.' },
+          { range:'Year 3–7',  title:'Engineer II / PE',                 salary:'$85K–$115K',  desc:'Lead project work streams, stamp engineering drawings with your PE license, manage contractor relationships on site.' },
+          { range:'Year 8–13', title:'Senior Civil Engineer',            salary:'$110K–$155K', desc:'Design complex infrastructure systems, oversee junior engineers, lead client interactions, and manage $10–50M projects.' },
+          { range:'Year 14–19',title:'Principal Engineer / PM',          salary:'$150K–$210K', desc:'Manage multi-year, multi-hundred-million-dollar infrastructure programs, provide expert guidance, and develop business.' },
+          { range:'Year 20+',  title:'Director of Engineering',          salary:'$200K–$350K+',desc:'Lead a regional engineering practice, set technical standards, develop new client relationships, and mentor the next generation.' },
         ]},
       { id:'aerospace_engineer', title:'Aerospace Engineer', cat:'engineering', emoji:'🛸',
         desc:'Design aircraft, spacecraft, and propulsion systems that push the frontier of what humans can achieve.',
         v:[9,6,3,5,8,5,2,10],
         daily:'Run aerodynamic simulations, review design drawings, test structural components, write engineering change orders, and collaborate across mechanical and avionics teams.',
         levels:[
-          { range:'0–2 yrs',  title:'Aerospace Engineer I',              salary:'$80K–$110K' },
-          { range:'3–5 yrs',  title:'Aerospace Engineer II',             salary:'$110K–$145K' },
-          { range:'6–9 yrs',  title:'Senior Aerospace Engineer',         salary:'$145K–$195K' },
-          { range:'10–14 yrs',title:'Principal Engineer',                salary:'$190K–$260K' },
-          { range:'15+ yrs',  title:'Chief Engineer / Technical Fellow', salary:'$250K–$450K+' },
+          { range:'Year 0–2',  title:'Aerospace Engineer I',             salary:'$80K–$110K',  desc:'Run simulations and analysis under senior engineers, support test campaigns, and develop proficiency in aerospace modeling tools.' },
+          { range:'Year 3–7',  title:'Aerospace Engineer II',            salary:'$110K–$145K', desc:'Lead subsystem design efforts, author engineering specifications, and collaborate across avionics, structures, and propulsion teams.' },
+          { range:'Year 8–13', title:'Senior Aerospace Engineer',        salary:'$145K–$195K', desc:'Drive design and verification for major aircraft or spacecraft systems, represent engineering on program reviews, and mentor engineers.' },
+          { range:'Year 14–19',title:'Principal Engineer',               salary:'$190K–$260K', desc:'Set technical standards across a program, resolve critical design challenges, and represent the engineering function to program leadership.' },
+          { range:'Year 20+',  title:'Chief Engineer / Technical Fellow',salary:'$250K–$450K+',desc:'Define engineering architecture for next-generation systems, publish influential technical work, and guide company-wide technical strategy.' },
         ]},
       { id:'env_scientist', title:'Environmental Scientist', cat:'engineering', emoji:'🌍',
         desc:'Study and solve pressing environmental challenges from climate change to water quality and biodiversity.',
         v:[8,5,4,4,7,4,6,7],
         daily:'Collect and analyze field samples, run environmental impact assessments, write regulatory reports, engage with government agencies, and advise clients on compliance.',
         levels:[
-          { range:'0–2 yrs',  title:'Environmental Scientist I',         salary:'$50K–$70K' },
-          { range:'3–5 yrs',  title:'Environmental Scientist II',        salary:'$70K–$95K' },
-          { range:'6–9 yrs',  title:'Senior Environmental Scientist',    salary:'$95K–$130K' },
-          { range:'10–14 yrs',title:'Principal Scientist / PM',          salary:'$130K–$175K' },
-          { range:'15+ yrs',  title:'Director of Environmental Services',salary:'$170K–$280K+' },
+          { range:'Year 0–2',  title:'Environmental Scientist I',        salary:'$50K–$70K',   desc:'Collect field samples, analyze environmental data, write compliance reports, and learn federal/state environmental regulations.' },
+          { range:'Year 3–7',  title:'Environmental Scientist II',       salary:'$70K–$95K',   desc:'Lead environmental impact assessments, interact with regulatory agencies, and manage compliance programs for major projects.' },
+          { range:'Year 8–13', title:'Senior Environmental Scientist',   salary:'$95K–$130K',  desc:'Design complex remediation programs, provide expert testimony, lead teams on multi-million dollar environmental projects.' },
+          { range:'Year 14–19',title:'Principal Scientist / PM',         salary:'$130K–$175K', desc:'Lead large environmental consulting practices, develop new client relationships, and set technical standards for the region.' },
+          { range:'Year 20+',  title:'Director of Environmental Services',salary:'$170K–$280K+',desc:'Run a practice group, manage major client accounts, shape policy at the local and national level, and build a reputation as an expert.' },
         ]},
       { id:'nuclear_engineer', title:'Nuclear Engineer', cat:'engineering', emoji:'⚛️',
         desc:'Harness nuclear reactions for clean energy production, medical imaging, and national defense applications.',
         v:[9,4,2,4,9,3,2,10],
         daily:'Analyze reactor safety data, run neutronics calculations, write safety documentation, perform design reviews, and work with regulatory bodies like the NRC.',
         levels:[
-          { range:'0–2 yrs',  title:'Nuclear Engineer I',                salary:'$80K–$110K' },
-          { range:'3–5 yrs',  title:'Nuclear Engineer II',               salary:'$110K–$145K' },
-          { range:'6–9 yrs',  title:'Senior Nuclear Engineer',           salary:'$145K–$190K' },
-          { range:'10–14 yrs',title:'Principal Engineer',                salary:'$185K–$250K' },
-          { range:'15+ yrs',  title:'Chief Nuclear Engineer',            salary:'$240K–$400K+' },
+          { range:'Year 0–2',  title:'Nuclear Engineer I',               salary:'$80K–$110K',  desc:'Perform reactor physics calculations, support safety analyses, draft NRC licensing documentation, and learn DOE/NRC regulatory processes.' },
+          { range:'Year 3–7',  title:'Nuclear Engineer II',              salary:'$110K–$145K', desc:'Lead safety analysis work streams, interface directly with the NRC, develop reactor design documentation, and perform design reviews.' },
+          { range:'Year 8–13', title:'Senior Nuclear Engineer',          salary:'$145K–$190K', desc:'Design and analyze advanced reactor systems, lead licensing efforts, and represent your organization to regulators and government clients.' },
+          { range:'Year 14–19',title:'Principal Engineer',               salary:'$185K–$250K', desc:'Drive next-generation reactor design programs, mentor the technical staff, and lead regulatory strategy for complex projects.' },
+          { range:'Year 20+',  title:'Chief Nuclear Engineer',           salary:'$240K–$400K+',desc:'Define the technical vision for nuclear programs, advise on national energy policy, and guide the industry\'s safety culture.' },
         ]},
       { id:'architect', title:'Architect', cat:'engineering', emoji:'🏛️',
         desc:'Design buildings and spaces that balance aesthetic beauty, human function, and structural integrity.',
         v:[7,10,5,5,7,5,5,7],
         daily:'Meet with clients to refine design briefs, develop architectural drawings and 3D models, coordinate with structural and MEP engineers, and visit construction sites.',
         levels:[
-          { range:'0–2 yrs',  title:'Intern Architect',                  salary:'$50K–$70K' },
-          { range:'3–5 yrs',  title:'Architect I (Licensed)',            salary:'$70K–$95K' },
-          { range:'6–9 yrs',  title:'Senior / Project Architect',        salary:'$95K–$135K' },
-          { range:'10–14 yrs',title:'Associate Principal',               salary:'$130K–$185K' },
-          { range:'15+ yrs',  title:'Principal / Design Director',       salary:'$180K–$350K+' },
+          { range:'Year 0–5',  title:'Architecture Student / Intern',    salary:'$40K–$65K',   desc:'Complete a 5-year B.Arch or 3-year M.Arch degree, intern at a firm, and accumulate AXP hours toward the ARE licensure exams.' },
+          { range:'Year 6–10', title:'Licensed Architect',               salary:'$70K–$95K',   desc:'Lead project design from schematic to construction documents, coordinate with consultants, and manage client expectations.' },
+          { range:'Year 11–16',title:'Senior / Project Architect',       salary:'$95K–$135K',  desc:'Lead all phases of complex commercial, cultural, or residential projects, manage large project teams, and win design awards.' },
+          { range:'Year 17–22',title:'Associate Principal',              salary:'$130K–$185K', desc:'Lead client development at the firm, develop design excellence programs, and manage a portfolio of projects for major institutional clients.' },
+          { range:'Year 23+',  title:'Principal / Design Director',      salary:'$180K–$350K+', desc:'Lead the firm\'s design vision, win national design competitions, represent the firm at major cultural institutions.' },
         ]},
 
       // GOVERNMENT & POLICY
@@ -676,52 +720,52 @@
         v:[5,6,10,9,4,6,7,2],
         daily:'Meet with constituents, attend legislative sessions and committee hearings, vote on legislation, draft policy proposals, engage with the media, and fundraise for re-election.',
         levels:[
-          { range:'Entry',   title:'City Council / State Representative', salary:'$25K–$80K' },
-          { range:'Mid',     title:'State Senator / Mayor',               salary:'$80K–$175K' },
-          { range:'Senior',  title:'U.S. Representative',                 salary:'$174K' },
-          { range:'Senior+', title:'U.S. Senator',                        salary:'$174K' },
-          { range:'Apex',    title:'Governor / Cabinet Member',           salary:'$157K–$400K' },
+          { range:'Year 0–5',  title:'City Council / State Rep',          salary:'$25K–$80K',   desc:'Win your first local or state election, learn the legislative process, build constituent relationships, and earn political credibility.' },
+          { range:'Year 6–12', title:'State Senator / Mayor',             salary:'$80K–$175K',  desc:'Take on higher-profile legislative work, lead committees, manage a larger staff, and develop a statewide or regional political brand.' },
+          { range:'Year 13–20',title:'U.S. Representative',               salary:'$174K',       desc:'Represent hundreds of thousands of constituents in Congress, vote on federal legislation, and serve on powerful House committees.' },
+          { range:'Year 21–28',title:'U.S. Senator',                      salary:'$174K',       desc:'Shape national policy across 6-year terms, chair Senate committees, run high-profile hearings, and build a national reputation.' },
+          { range:'Year 29+',  title:'Governor / Cabinet Member',         salary:'$157K–$400K', desc:'Lead an entire state as Governor or serve as a Cabinet secretary, shaping policy for millions and building a legacy.' },
         ]},
       { id:'diplomat', title:'Diplomat / Foreign Service', cat:'government', emoji:'🌐',
         desc:'Represent your nation abroad, negotiate treaties, and build relationships across cultures and continents.',
         v:[7,6,9,7,6,5,8,2],
         daily:'Attend meetings with foreign government officials, write diplomatic cables and reports, analyze political developments, manage consular services, and brief the Ambassador.',
         levels:[
-          { range:'Entry (FSO)', title:'Vice Consul / Third Secretary',  salary:'$55K–$80K' },
-          { range:'Mid',         title:'Second / First Secretary',       salary:'$80K–$120K' },
-          { range:'Senior',      title:'Counselor / Deputy Chief',       salary:'$120K–$170K' },
-          { range:'Apex',        title:'Ambassador',                     salary:'$170K–$200K' },
+          { range:'Year 0–4',  title:'Vice Consul / Third Secretary',     salary:'$55K–$80K',   desc:'Pass the rigorous Foreign Service Officer Test, complete A-100 training, and begin your first posting managing consular services abroad.' },
+          { range:'Year 5–10', title:'Second / First Secretary',          salary:'$80K–$120K',  desc:'Lead political or economic reporting from a major embassy, develop relationships with foreign officials, and brief senior diplomats.' },
+          { range:'Year 11–18',title:'Counselor / Deputy Chief',          salary:'$120K–$170K', desc:'Lead a section of a major embassy, manage country team relationships, and serve as the senior diplomat in a smaller post.' },
+          { range:'Year 19+',  title:'Ambassador',                        salary:'$170K–$200K', desc:'Represent the United States as the top diplomat in a foreign country, appointed by the President and confirmed by the Senate.' },
         ]},
       { id:'policy_analyst', title:'Policy Analyst', cat:'government', emoji:'📜',
         desc:'Research and design evidence-based policies that address society\'s most complex, systemic challenges.',
         v:[9,5,5,5,7,4,6,3],
         daily:'Research legislation and regulatory proposals, write policy memos and briefing papers, model economic and social impacts, and engage with government stakeholders.',
         levels:[
-          { range:'0–2 yrs',  title:'Policy Analyst',                    salary:'$55K–$75K' },
-          { range:'3–5 yrs',  title:'Senior Policy Analyst',             salary:'$75K–$100K' },
-          { range:'6–9 yrs',  title:'Policy Director / Manager',         salary:'$100K–$145K' },
-          { range:'10+ yrs',  title:'Deputy Director / Chief Policy Officer',salary:'$140K–$220K+' },
+          { range:'Year 0–3',  title:'Policy Analyst',                    salary:'$55K–$75K',   desc:'Research legislation and regulatory proposals, write briefing memos, model policy impacts, and support senior analysts on major initiatives.' },
+          { range:'Year 4–8',  title:'Senior Policy Analyst',             salary:'$75K–$100K',  desc:'Lead policy research projects independently, engage congressional staffers and agency officials, and develop a recognized policy expertise.' },
+          { range:'Year 9–14', title:'Policy Director / Manager',         salary:'$100K–$145K', desc:'Direct a policy research program, manage a team of analysts, represent your organization in government hearings and media.' },
+          { range:'Year 15+',  title:'Deputy Director / CPO',             salary:'$140K–$220K+',desc:'Lead a major think tank, agency office, or NGO policy division, influencing legislation and shaping public discourse at scale.' },
         ]},
       { id:'military_officer', title:'Military Officer', cat:'government', emoji:'🎖️',
         desc:'Lead soldiers, plan operations, and serve your nation with unwavering discipline, courage, and strategy.',
         v:[7,3,5,9,10,4,4,5],
         daily:'Lead and train soldiers, plan tactical and operational exercises, coordinate logistics, prepare briefings for senior commanders, and maintain unit readiness.',
         levels:[
-          { range:'0–4 yrs',  title:'Second / First Lieutenant',         salary:'$40K–$70K' },
-          { range:'5–8 yrs',  title:'Captain',                           salary:'$65K–$95K' },
-          { range:'9–14 yrs', title:'Major / Lieutenant Colonel',        salary:'$90K–$130K' },
-          { range:'15–20 yrs',title:'Colonel',                           salary:'$125K–$175K' },
-          { range:'20+ yrs',  title:'General Officer (1–4 stars)',        salary:'$165K–$210K+' },
+          { range:'Year 0–4',  title:'Second / First Lieutenant',         salary:'$40K–$70K',   desc:'Commission as an officer via ROTC, OCS, or a service academy, lead a platoon or small unit, and complete mandatory training schools.' },
+          { range:'Year 5–9',  title:'Captain',                           salary:'$65K–$95K',   desc:'Command a company of 60–200 soldiers, plan tactical operations, manage logistics and personnel, and pursue advanced military schooling.' },
+          { range:'Year 10–15',title:'Major / Lieutenant Colonel',        salary:'$90K–$130K',  desc:'Staff assignments at brigade or division level, lead battalion-sized operations, complete PME, and begin a strategic career path.' },
+          { range:'Year 16–22',title:'Colonel',                           salary:'$125K–$175K', desc:'Command a brigade of 3,000–5,000 soldiers, hold key staff positions at combatant commands, and compete for General Officer selection.' },
+          { range:'Year 23+',  title:'General Officer (1–4 stars)',       salary:'$165K–$210K+',desc:'Command major combat forces, lead joint military operations, advise the President and Secretary of Defense on national security strategy.' },
         ]},
       { id:'nonprofit_director', title:'Nonprofit Director', cat:'government', emoji:'❤️',
         desc:'Lead a mission-driven organization delivering impactful programs that create lasting community change.',
         v:[6,6,8,8,6,5,10,3],
         daily:'Manage program staff and budgets, cultivate donor relationships, write grant applications, attend board meetings, advocate publicly for the mission, and measure program outcomes.',
         levels:[
-          { range:'0–2 yrs',  title:'Program Manager / Coordinator',     salary:'$45K–$65K' },
-          { range:'3–5 yrs',  title:'Program Director',                  salary:'$65K–$90K' },
-          { range:'6–9 yrs',  title:'Deputy / Senior Director',          salary:'$90K–$130K' },
-          { range:'10+ yrs',  title:'Executive Director / CEO',          salary:'$130K–$300K+' },
+          { range:'Year 0–2',  title:'Program Coordinator',               salary:'$45K–$65K',   desc:'Manage program logistics, track participant data, coordinate volunteers, and support grant reporting to funders.' },
+          { range:'Year 3–7',  title:'Program Director',                  salary:'$65K–$90K',   desc:'Lead program design and delivery, manage a small team, cultivate community partnerships, and write grant proposals.' },
+          { range:'Year 8–13', title:'Deputy / Senior Director',          salary:'$90K–$130K',  desc:'Oversee multiple programs, develop major donor relationships, represent the organization externally, and support the board.' },
+          { range:'Year 14+',  title:'Executive Director / CEO',          salary:'$130K–$300K+',desc:'Lead the entire organization, set strategic vision, manage multi-million dollar budgets, and drive systemic impact in your cause area.' },
         ]},
 
       // ENTREPRENEURSHIP
@@ -730,20 +774,20 @@
         v:[6,8,7,10,3,10,5,5],
         daily:'Set company strategy, recruit and manage the founding team, pitch investors, meet with early customers, review product metrics, and manage cash and runway.',
         levels:[
-          { range:'0–2 yrs',  title:'Founder / Co-Founder',              salary:'$0–$80K + equity' },
-          { range:'3–5 yrs',  title:'CEO (Seed–Series A)',                salary:'$100K–$175K + equity' },
-          { range:'6–9 yrs',  title:'CEO (Series B/C)',                   salary:'$175K–$350K + equity' },
-          { range:'10+ yrs',  title:'CEO (Late-stage / Exit)',            salary:'$300K–$1M+ + equity' },
+          { range:'Year 0–2',  title:'Founder / Co-Founder',             salary:'$0–$80K + equity',     desc:'Live on minimal salary, validate the core idea, build the MVP, find the first 10 paying customers, and convince the founding team to join.' },
+          { range:'Year 3–6',  title:'CEO (Seed–Series A)',               salary:'$100K–$175K + equity', desc:'Achieve early product-market fit, raise $2–$15M from VCs, hire the first 20 employees, and prove repeatable customer acquisition.' },
+          { range:'Year 7–11', title:'CEO (Series B/C)',                  salary:'$175K–$350K + equity', desc:'Scale to 100–500 employees, raise $50–$200M, expand to new markets, and build a durable business with strong unit economics.' },
+          { range:'Year 12+',  title:'CEO (Late-stage / Exit)',           salary:'$300K–$1M+ + equity',  desc:'Lead the company to IPO or acquisition, manage a large executive team, and convert years of equity into generational wealth.' },
         ]},
       { id:'ceo', title:'CEO (Large Corporation)', cat:'entrepreneurship', emoji:'👔',
         desc:'Set the vision, inspire thousands of employees, and steer a major organization through growth and transformation.',
         v:[8,6,7,10,6,7,6,4],
         daily:'Hold executive leadership meetings, review company financials and KPIs, meet with the board, engage major customers and investors, and set strategic priorities.',
         levels:[
-          { range:'0–5 yrs exec', title:'VP / SVP',                      salary:'$250K–$450K' },
-          { range:'6–10 yrs',     title:'EVP / President',               salary:'$400K–$800K' },
-          { range:'11–15 yrs',    title:'CEO (Mid-cap)',                  salary:'$700K–$3M' },
-          { range:'15+ yrs',      title:'CEO (Fortune 500)',              salary:'$3M–$30M+' },
+          { range:'Year 0–8',  title:'VP / SVP',                         salary:'$250K–$450K', desc:'Lead a major business unit or function, build a track record of results, develop executive presence, and gain P&L ownership experience.' },
+          { range:'Year 9–15', title:'EVP / President',                  salary:'$400K–$800K', desc:'Oversee multiple business lines, work directly with the board, and position yourself as the top internal CEO candidate.' },
+          { range:'Year 16–22',title:'CEO (Mid-cap)',                    salary:'$700K–$3M',   desc:'Lead a company of 1,000–10,000 employees, drive transformation, manage activist investors, and deliver consistent shareholder returns.' },
+          { range:'Year 23+',  title:'CEO (Fortune 500)',                salary:'$3M–$30M+',   desc:'Run a global organization of tens of thousands, testify before Congress, manage geopolitical risk, and leave a lasting corporate legacy.' },
         ]},
     ];
 
@@ -1008,6 +1052,291 @@
       'Intellectual': '#fb923c',
       'Social':       '#34d399',
     };
+
+    /* ================================================================
+       COMPONENT: Sidebar
+    ================================================================ */
+    const NAV_ITEMS = [
+      { id:'home',    label:'Home',            icon:'🏠' },
+      { id:'quiz',    label:'Take Quiz',        icon:'✏️' },
+      { id:'explore', label:'Explore Careers',  icon:'🔍' },
+      { id:'about',   label:'About Us',         icon:'👥' },
+    ];
+
+    function Sidebar({ page, navigate, open, onClose }) {
+      return (
+        <>
+          {open && <div className="sidebar-overlay" onClick={onClose} />}
+          <nav className={`sidebar${open ? ' open' : ''}`}>
+            {/* brand */}
+            <div style={{ padding:'28px 20px 16px', borderBottom:'1px solid #f3f4f6' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:4 }}>
+                <span style={{ fontSize:26 }}>🧭</span>
+                <span style={{ fontWeight:900, fontSize:17, color:'#1e1b4b' }}>CareerMatch</span>
+              </div>
+              <div style={{ fontSize:11, color:'#9ca3af', fontFamily:'monospace' }}>{VERSION}</div>
+            </div>
+            {/* nav */}
+            <div style={{ flex:1, padding:'12px 10px', display:'flex', flexDirection:'column', gap:2 }}>
+              {NAV_ITEMS.map(item => (
+                <button key={item.id}
+                  className={`nav-btn${page === item.id ? ' active' : ''}`}
+                  onClick={() => navigate(item.id)}>
+                  <span style={{ fontSize:18, width:26, textAlign:'center' }}>{item.icon}</span>
+                  {item.label}
+                </button>
+              ))}
+            </div>
+            {/* footer */}
+            <div style={{ padding:'16px 20px', borderTop:'1px solid #f3f4f6' }}>
+              <div style={{ fontSize:11, color:'#9ca3af' }}>CareerMatch · {VERSION}</div>
+            </div>
+          </nav>
+        </>
+      );
+    }
+
+    /* ================================================================
+       COMPONENT: HomePage
+    ================================================================ */
+    function HomePage({ onStartQuiz }) {
+      const steps = [
+        { icon:'✏️', title:'Answer 25 Questions', desc:'Short, binary questions about your personality, values, and how you think. Takes about 3–5 minutes.' },
+        { icon:'🧮', title:'We Run the Math', desc:'Your answers build an 8-dimension profile. We score it against 57 careers using cosine similarity.' },
+        { icon:'🎯', title:'Get Your Match', desc:'See your #1 job, city, and company. Explore your full top-10 and bottom-10 ranking.' },
+      ];
+      const dims = [
+        ['Analytical','📐'], ['Creative','🎨'], ['Social','🤝'], ['Leadership','👑'],
+        ['Structured','📋'], ['Entrepreneurial','⚡'], ['Empathetic','❤️'], ['Technical','⚙️'],
+      ];
+      return (
+        <div style={{ minHeight:'100vh', background:'linear-gradient(160deg,#f0f4ff,#e8eeff,#f0f4ff)', padding:'60px 40px 80px' }}>
+          <div style={{ maxWidth:720, margin:'0 auto' }}>
+            {/* hero */}
+            <div style={{ textAlign:'center', marginBottom:72 }}>
+              <div style={{ fontSize:80, marginBottom:16, lineHeight:1 }}>🧭</div>
+              <h1 style={{ fontSize:48, fontWeight:900, color:'#1e1b4b', margin:'0 0 16px', lineHeight:1.1 }}>
+                Find Your Career Match
+              </h1>
+              <p style={{ fontSize:18, color:'#6b7280', marginBottom:32, maxWidth:520, margin:'0 auto 32px', lineHeight:1.6 }}>
+                A 25-question quiz that matches your personality and values to a real job, city, and company.
+              </p>
+              <button className="grad-btn" onClick={onStartQuiz}
+                style={{ padding:'16px 40px', borderRadius:16, border:'none', color:'white', fontWeight:700, fontSize:17, cursor:'pointer' }}>
+                Take the Quiz →
+              </button>
+              <div style={{ marginTop:12, fontSize:12, color:'#9ca3af' }}>3–5 minutes · Free · No account needed</div>
+            </div>
+
+            {/* how it works */}
+            <div style={{ marginBottom:64 }}>
+              <h2 style={{ fontSize:28, fontWeight:800, color:'#1e1b4b', marginBottom:32, textAlign:'center' }}>How It Works</h2>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))', gap:20 }}>
+                {steps.map((s, i) => (
+                  <div key={i} style={{ background:'white', borderRadius:20, padding:'28px 24px', border:'1px solid #e5e7eb', boxShadow:'0 4px 20px rgba(99,102,241,.08)', textAlign:'center' }}>
+                    <div style={{ fontSize:40, marginBottom:12 }}>{s.icon}</div>
+                    <div style={{ fontWeight:700, fontSize:15, color:'#1e1b4b', marginBottom:8 }}>
+                      <span style={{ background:'rgba(99,102,241,.1)', color:'#6366f1', borderRadius:'50%', width:22, height:22, display:'inline-flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:900, marginRight:6 }}>{i+1}</span>
+                      {s.title}
+                    </div>
+                    <div style={{ fontSize:13, color:'#6b7280', lineHeight:1.6 }}>{s.desc}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* dimensions */}
+            <div style={{ marginBottom:64 }}>
+              <h2 style={{ fontSize:28, fontWeight:800, color:'#1e1b4b', marginBottom:8, textAlign:'center' }}>Your 8-Dimension Profile</h2>
+              <p style={{ textAlign:'center', color:'#6b7280', fontSize:14, marginBottom:28 }}>Every answer shapes one of these dimensions, then we find your best career fit.</p>
+              <div style={{ display:'flex', flexWrap:'wrap', gap:10, justifyContent:'center' }}>
+                {dims.map(([name, icon]) => (
+                  <div key={name} style={{ background:'white', border:'1px solid #e5e7eb', borderRadius:12, padding:'8px 16px', display:'flex', alignItems:'center', gap:8 }}>
+                    <span>{icon}</span>
+                    <span style={{ fontWeight:600, fontSize:14, color:'#374151' }}>{name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* CTA */}
+            <div style={{ textAlign:'center', background:'white', borderRadius:24, padding:'48px 32px', border:'1px solid #e5e7eb', boxShadow:'0 4px 24px rgba(99,102,241,.1)' }}>
+              <h2 style={{ fontSize:26, fontWeight:800, color:'#1e1b4b', marginBottom:12 }}>Ready to Find Your Match?</h2>
+              <p style={{ color:'#6b7280', marginBottom:24, fontSize:15 }}>57 career paths, 20 cities, 130+ companies — your best fit is waiting.</p>
+              <button className="grad-btn" onClick={onStartQuiz}
+                style={{ padding:'14px 36px', borderRadius:14, border:'none', color:'white', fontWeight:700, fontSize:16, cursor:'pointer' }}>
+                Start the Quiz →
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    /* ================================================================
+       COMPONENT: AboutPage
+    ================================================================ */
+    function AboutPage() {
+      const founders = [
+        {
+          name: 'Alex Rivera',
+          title: 'Co-Founder & CEO',
+          photo: 'https://randomuser.me/api/portraits/men/32.jpg',
+          bio: 'Former McKinsey consultant and Stanford MBA who spent years watching brilliant people take the wrong jobs for the wrong reasons. Alex built CareerMatch after realizing most career-fit tools were surface-level. He\'s passionate about helping people find work that actually energizes them.',
+          fun: '🏔️ Summited 4 peaks over 14,000 ft',
+        },
+        {
+          name: 'Jordan Kim',
+          title: 'Co-Founder & CTO',
+          photo: 'https://randomuser.me/api/portraits/women/44.jpg',
+          bio: 'MIT Computer Science grad and former ML engineer at Google who got obsessed with the psychology of career fit. Jordan designed the 8-dimension vector model and the cosine similarity matching algorithm that powers CareerMatch. She believes career decisions deserve as much rigor as the work itself.',
+          fun: '🎸 Plays guitar in a blues band on weekends',
+        },
+      ];
+      return (
+        <div style={{ minHeight:'100vh', background:'linear-gradient(160deg,#f0f4ff,#e8eeff,#f0f4ff)', padding:'60px 40px 80px' }}>
+          <div style={{ maxWidth:720, margin:'0 auto' }}>
+            {/* header */}
+            <div style={{ textAlign:'center', marginBottom:64 }}>
+              <h1 style={{ fontSize:42, fontWeight:900, color:'#1e1b4b', margin:'0 0 16px' }}>About Us</h1>
+              <p style={{ fontSize:17, color:'#6b7280', maxWidth:500, margin:'0 auto', lineHeight:1.7 }}>
+                CareerMatch was built by two people who believe the question of <em>"what should I do with my life?"</em> deserves a much better answer.
+              </p>
+            </div>
+
+            {/* founders */}
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))', gap:24, marginBottom:64 }}>
+              {founders.map(f => (
+                <div key={f.name} style={{ background:'white', borderRadius:24, overflow:'hidden', border:'1px solid #e5e7eb', boxShadow:'0 4px 24px rgba(99,102,241,.09)' }}>
+                  <div style={{ background:'linear-gradient(135deg,rgba(99,102,241,.1),rgba(59,130,246,.08))', padding:'32px 32px 0', textAlign:'center' }}>
+                    <img src={f.photo} alt={f.name}
+                      style={{ width:100, height:100, borderRadius:'50%', border:'3px solid white', boxShadow:'0 4px 16px rgba(99,102,241,.2)', objectFit:'cover' }} />
+                  </div>
+                  <div style={{ padding:'20px 28px 28px' }}>
+                    <div style={{ fontWeight:900, fontSize:20, color:'#1e1b4b', marginBottom:4 }}>{f.name}</div>
+                    <div style={{ fontSize:13, color:'#6366f1', fontWeight:600, marginBottom:16, textTransform:'uppercase', letterSpacing:.5 }}>{f.title}</div>
+                    <p style={{ fontSize:14, color:'#4b5563', lineHeight:1.7, marginBottom:16 }}>{f.bio}</p>
+                    <div style={{ display:'flex', alignItems:'center', gap:8, background:'rgba(99,102,241,.06)', borderRadius:10, padding:'10px 14px', fontSize:13, color:'#6366f1', fontWeight:600 }}>
+                      {f.fun}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* mission */}
+            <div style={{ background:'white', borderRadius:24, padding:'40px 36px', border:'1px solid #e5e7eb', boxShadow:'0 4px 24px rgba(99,102,241,.08)', textAlign:'center' }}>
+              <div style={{ fontSize:44, marginBottom:16 }}>🎯</div>
+              <h2 style={{ fontSize:24, fontWeight:800, color:'#1e1b4b', marginBottom:12 }}>Our Mission</h2>
+              <p style={{ fontSize:15, color:'#4b5563', lineHeight:1.8, maxWidth:520, margin:'0 auto' }}>
+                To help every person find work that aligns with who they actually are — not who they think they should be.
+                Career fit isn't a nice-to-have. It's the difference between spending 40 hours a week thriving vs. surviving.
+              </p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    /* ================================================================
+       COMPONENT: ExplorePage
+    ================================================================ */
+    const CAT_LABELS = {
+      finance:'Finance', tech:'Technology', consulting:'Consulting & Strategy',
+      healthcare:'Healthcare', law:'Law', education:'Education',
+      media:'Media & Creative', engineering:'Engineering & Science',
+      government:'Government & Policy', entrepreneurship:'Entrepreneurship',
+    };
+    const CAT_COLORS = {
+      finance:'#6366f1', tech:'#0ea5e9', consulting:'#8b5cf6',
+      healthcare:'#ec4899', law:'#f59e0b', education:'#10b981',
+      media:'#f97316', engineering:'#3b82f6', government:'#64748b', entrepreneurship:'#ef4444',
+    };
+
+    function ExplorePage() {
+      const [search, setSearch] = useState('');
+      const [cat, setCat] = useState('all');
+      const [selected, setSelected] = useState(null);
+
+      const filtered = JOBS.filter(j =>
+        (cat === 'all' || j.cat === cat) &&
+        j.title.toLowerCase().includes(search.toLowerCase())
+      );
+      const cats = ['all', ...Object.keys(CAT_LABELS)];
+
+      return (
+        <div style={{ minHeight:'100vh', background:'#f5f7ff', padding:'40px 32px 80px' }}>
+          <div style={{ maxWidth:940, margin:'0 auto' }}>
+            <h1 style={{ fontSize:36, fontWeight:900, color:'#1e1b4b', marginBottom:8 }}>Explore Careers</h1>
+            <p style={{ color:'#6b7280', marginBottom:32, fontSize:15 }}>Click any role to see daily life, salary progression, and career timeline.</p>
+
+            {/* search */}
+            <div style={{ position:'relative', marginBottom:20 }}>
+              <span style={{ position:'absolute', left:16, top:'50%', transform:'translateY(-50%)', fontSize:16, pointerEvents:'none' }}>🔍</span>
+              <input value={search} onChange={e => setSearch(e.target.value)}
+                placeholder="Search 57 careers…"
+                style={{ width:'100%', padding:'12px 16px 12px 44px', borderRadius:12, border:'1px solid #e5e7eb',
+                  background:'white', fontSize:15, outline:'none', boxShadow:'0 2px 8px rgba(99,102,241,.06)', boxSizing:'border-box' }} />
+            </div>
+
+            {/* category pills */}
+            <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginBottom:28 }}>
+              {cats.map(c => (
+                <button key={c} onClick={() => setCat(c)}
+                  style={{
+                    padding:'6px 14px', borderRadius:20, border:'none', cursor:'pointer', fontSize:13, fontWeight:600,
+                    background: cat === c ? '#6366f1' : 'white',
+                    color: cat === c ? 'white' : '#374151',
+                    boxShadow:'0 1px 4px rgba(0,0,0,.08)',
+                    transition:'all .15s',
+                  }}>
+                  {c === 'all' ? 'All Careers' : CAT_LABELS[c]}
+                </button>
+              ))}
+            </div>
+
+            {/* count */}
+            <div style={{ fontSize:13, color:'#9ca3af', marginBottom:16 }}>{filtered.length} career{filtered.length !== 1 ? 's' : ''}</div>
+
+            {/* grid */}
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(240px,1fr))', gap:16 }}>
+              {filtered.map(job => {
+                const color = CAT_COLORS[job.cat] || '#6366f1';
+                const topSalary = job.levels[job.levels.length - 1].salary;
+                return (
+                  <button key={job.id} onClick={() => setSelected(job)}
+                    style={{ background:'white', borderRadius:18, padding:'20px', border:'1px solid #e5e7eb',
+                      boxShadow:'0 2px 12px rgba(99,102,241,.06)', cursor:'pointer', textAlign:'left',
+                      transition:'transform .15s, box-shadow .15s',
+                    }}
+                    onMouseEnter={e=>{ e.currentTarget.style.transform='translateY(-2px)'; e.currentTarget.style.boxShadow='0 8px 28px rgba(99,102,241,.15)'; }}
+                    onMouseLeave={e=>{ e.currentTarget.style.transform=''; e.currentTarget.style.boxShadow='0 2px 12px rgba(99,102,241,.06)'; }}>
+                    <div style={{ fontSize:36, marginBottom:10 }}>{job.emoji}</div>
+                    <div style={{ fontWeight:800, fontSize:15, color:'#1e1b4b', marginBottom:4, lineHeight:1.3 }}>{job.title}</div>
+                    <div style={{ fontSize:11, fontWeight:700, color, background:`${color}18`, borderRadius:6, padding:'3px 8px', display:'inline-block', marginBottom:8, textTransform:'uppercase', letterSpacing:.4 }}>
+                      {CAT_LABELS[job.cat]}
+                    </div>
+                    <div style={{ fontSize:12, color:'#6b7280', lineHeight:1.5, marginBottom:10 }}>{job.desc}</div>
+                    <div style={{ fontSize:11, color:'#9ca3af', display:'flex', alignItems:'center', gap:4 }}>
+                      <span>💰</span> Senior: <strong style={{color:'#374151'}}>{topSalary}</strong>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* detail modal */}
+          {selected && (
+            <JobDetailModal
+              result={{ job: selected, score: 1, city: bestCityForJob(selected), company: bestCompanyForJobCity(selected, bestCityForJob(selected)) }}
+              userVec={null}
+              onClose={() => setSelected(null)}
+            />
+          )}
+        </div>
+      );
+    }
 
     /* ================================================================
        COMPONENT: IntroScreen
@@ -1308,131 +1637,123 @@
     function JobDetailModal({ result, userVec, onClose }) {
       const { job } = result;
 
-      // Prevent body scroll while open
       useEffect(() => {
         document.body.style.overflow = 'hidden';
         return () => { document.body.style.overflow = ''; };
       }, []);
 
-      // Build "Why You" reasons — top overlapping dimensions
-      const userTopIdx = [...userVec]
-        .map((v, i) => ({ i, v }))
-        .sort((a, b) => b.v - a.v)
-        .slice(0, 4)
-        .map(x => x.i);
-      const jobTopIdx = [...job.v]
-        .map((v, i) => ({ i, v }))
-        .sort((a, b) => b.v - a.v)
-        .slice(0, 4)
-        .map(x => x.i);
-      const overlap = userTopIdx.filter(i => jobTopIdx.includes(i));
-      const reasons = overlap.length
-        ? overlap.map(i => ({ dim: DIM_NAMES[i], reason: DIM_REASONS[DIM_NAMES[i]] }))
-        : userTopIdx.slice(0, 2).map(i => ({ dim: DIM_NAMES[i], reason: DIM_REASONS[DIM_NAMES[i]] }));
+      // Build "Why You" reasons — only when userVec is available
+      let reasons = null;
+      if (userVec) {
+        const userTopIdx = [...userVec].map((v,i)=>({i,v})).sort((a,b)=>b.v-a.v).slice(0,4).map(x=>x.i);
+        const jobTopIdx  = [...job.v].map((v,i)=>({i,v})).sort((a,b)=>b.v-a.v).slice(0,4).map(x=>x.i);
+        const overlap = userTopIdx.filter(i => jobTopIdx.includes(i));
+        reasons = (overlap.length ? overlap : userTopIdx.slice(0,2))
+          .map(i => ({ dim: DIM_NAMES[i], reason: DIM_REASONS[DIM_NAMES[i]] }));
+      }
+      const matchPct = userVec ? Math.round(result.score * 100) : null;
 
-      const matchPct = Math.round(result.score * 100);
+      // Total career horizon from last level range
+      const lastRange = job.levels[job.levels.length - 1].range;
 
       return (
-        <div
-          onClick={onClose}
-          style={{
-            position:'fixed', inset:0, zIndex:999,
-            background:'rgba(0,0,0,.75)', backdropFilter:'blur(6px)',
-            display:'flex', alignItems:'flex-end', justifyContent:'center',
-          }}>
-          <div
-            onClick={e => e.stopPropagation()}
-            className="fade-up w-full overflow-y-auto"
-            style={{
-              maxWidth:680, maxHeight:'92vh',
-              background:'white',
-              border:'1px solid rgba(99,102,241,.3)',
-              borderRadius:'28px 28px 0 0',
-              padding:'0',
-            }}>
+        <div onClick={onClose}
+          style={{ position:'fixed', inset:0, zIndex:999,
+            background:'rgba(30,27,75,.6)', backdropFilter:'blur(6px)',
+            display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
+          <div onClick={e => e.stopPropagation()} className="fade-up"
+            style={{ width:'100%', maxWidth:700, maxHeight:'92vh', overflowY:'auto',
+              background:'white', border:'1px solid rgba(99,102,241,.25)',
+              borderRadius:'28px 28px 0 0' }}>
 
             {/* sticky header */}
-            <div style={{
-              position:'sticky', top:0, zIndex:10,
-              background:'white',
-              borderBottom:'1px solid #e5e7eb',
-              padding:'20px 28px 16px',
-              display:'flex', alignItems:'center', justifyContent:'space-between',
-            }}>
-              <div className="flex items-center gap-3">
-                <span className="text-3xl">{job.emoji}</span>
+            <div style={{ position:'sticky', top:0, zIndex:10, background:'white',
+              borderBottom:'1px solid #e5e7eb', padding:'18px 28px 14px',
+              display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                <span style={{ fontSize:32 }}>{job.emoji}</span>
                 <div>
-                  <div className="font-black text-lg leading-tight" style={{color:'#1e1b4b'}}>{job.title}</div>
-                  <div className="text-xs" style={{color:'#6b7280'}}>{result.city.name} · {result.company.name}</div>
+                  <div style={{ fontWeight:900, fontSize:17, color:'#1e1b4b', lineHeight:1.2 }}>{job.title}</div>
+                  <div style={{ fontSize:12, color:'#6b7280' }}>{result.city.name} · {result.company.name}</div>
                 </div>
               </div>
-              <button onClick={onClose}
-                className="text-2xl leading-none transition-colors"
-                style={{ color:'#9ca3af', lineHeight:1 }}
-                onMouseEnter={e=>e.target.style.color='#1e1b4b'}
-                onMouseLeave={e=>e.target.style.color='#9ca3af'}>×</button>
+              <button onClick={onClose} style={{ fontSize:24, color:'#9ca3af', background:'none', border:'none', cursor:'pointer', lineHeight:1, padding:4 }}
+                onMouseEnter={e=>e.target.style.color='#1e1b4b'} onMouseLeave={e=>e.target.style.color='#9ca3af'}>×</button>
             </div>
 
-            <div style={{ padding:'24px 28px 40px' }}>
+            <div style={{ padding:'24px 28px 48px' }}>
 
-              {/* ── Section 1: Day in the Life ────────────────── */}
-              <div className="mb-8">
-                <h3 className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color:'#6366f1' }}>
-                  📅 Day in the Life
-                </h3>
-                <p className="text-base leading-relaxed" style={{color:'#374151'}}>
-                  {job.daily}
-                </p>
+              {/* ── Section 1: Day in the Life */}
+              <div style={{ marginBottom:32 }}>
+                <div style={{ fontSize:11, fontWeight:800, color:'#6366f1', textTransform:'uppercase', letterSpacing:1, marginBottom:10 }}>📅 Day in the Life</div>
+                <p style={{ fontSize:15, color:'#374151', lineHeight:1.75, margin:0 }}>{job.daily}</p>
               </div>
 
-              {/* ── Section 2: Why You ────────────────────────── */}
-              <div className="mb-8">
-                <h3 className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color:'#6366f1' }}>
-                  🎯 Why You Were Matched ({matchPct}% fit)
-                </h3>
-                <div className="flex flex-col gap-3">
-                  {reasons.map(({ dim, reason }) => (
-                    <div key={dim} className="rounded-2xl px-4 py-3"
-                      style={{ background:'rgba(99,102,241,.06)', border:'1px solid rgba(99,102,241,.18)' }}>
-                      <div className="text-sm font-bold mb-0.5" style={{color:'#4f46e5'}}>{dim}</div>
-                      <div className="text-xs leading-relaxed" style={{color:'#6b7280'}}>{reason}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* ── Section 3: Salary Progression ────────────── */}
-              <div>
-                <h3 className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color:'#6366f1' }}>
-                  💵 Salary Progression
-                </h3>
-                <div className="flex flex-col gap-2">
-                  {job.levels.map((lvl, idx) => {
-                    const isLast  = idx === job.levels.length - 1;
-                    return (
-                      <div key={idx} className="rounded-2xl px-5 py-4 flex items-center gap-4"
-                        style={{
-                          background: isLast
-                            ? 'linear-gradient(135deg,rgba(99,102,241,.1),rgba(59,130,246,.08))'
-                            : '#f9fafb',
-                          border: `1px solid ${isLast ? 'rgba(99,102,241,.3)' : '#e5e7eb'}`,
-                        }}>
-                        <div className="flex-shrink-0 flex flex-col items-center" style={{ width:18 }}>
-                          <div style={{
-                            width:10, height:10, borderRadius:'50%',
-                            background: isLast ? 'linear-gradient(135deg,#6366f1,#3b82f6)' : '#d1d5db',
-                          }} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs mb-0.5" style={{color:'#9ca3af'}}>{lvl.range}</div>
-                          <div className="text-sm font-bold" style={{color: isLast ? '#4f46e5' : '#374151'}}>{lvl.title}</div>
-                        </div>
-                        <div className="text-sm font-black flex-shrink-0" style={{color: isLast ? '#4f46e5' : '#6b7280'}}>
-                          {lvl.salary}
-                        </div>
+              {/* ── Section 2: Why You (only when quiz result) */}
+              {reasons && (
+                <div style={{ marginBottom:32 }}>
+                  <div style={{ fontSize:11, fontWeight:800, color:'#6366f1', textTransform:'uppercase', letterSpacing:1, marginBottom:10 }}>
+                    🎯 Why You Were Matched {matchPct !== null && `(${matchPct}% fit)`}
+                  </div>
+                  <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                    {reasons.map(({ dim, reason }) => (
+                      <div key={dim} style={{ background:'rgba(99,102,241,.05)', border:'1px solid rgba(99,102,241,.15)', borderRadius:14, padding:'12px 16px' }}>
+                        <div style={{ fontWeight:700, fontSize:14, color:'#4f46e5', marginBottom:4 }}>{dim}</div>
+                        <div style={{ fontSize:13, color:'#6b7280', lineHeight:1.6 }}>{reason}</div>
                       </div>
-                    );
-                  })}
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ── Section 3: Career Timeline */}
+              <div>
+                <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom:16 }}>
+                  <div style={{ fontSize:11, fontWeight:800, color:'#6366f1', textTransform:'uppercase', letterSpacing:1 }}>💵 Career Progression</div>
+                  <div style={{ fontSize:11, color:'#9ca3af' }}>{job.levels.length} stages · {lastRange} to peak</div>
+                </div>
+
+                {/* timeline */}
+                <div style={{ position:'relative' }}>
+                  {/* vertical line */}
+                  <div style={{ position:'absolute', left:15, top:8, bottom:8, width:2, background:'linear-gradient(180deg,#e0e7ff,#c7d2fe)', borderRadius:2 }} />
+
+                  <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
+                    {job.levels.map((lvl, idx) => {
+                      const isLast = idx === job.levels.length - 1;
+                      const pct = ((idx+1) / job.levels.length);
+                      const dotColor = isLast ? '#6366f1' : `rgba(99,102,241,${0.25 + pct * 0.5})`;
+                      return (
+                        <div key={idx} style={{ display:'flex', gap:16, paddingBottom: isLast ? 0 : 0 }}>
+                          {/* dot */}
+                          <div style={{ flexShrink:0, width:32, display:'flex', justifyContent:'center', paddingTop:14 }}>
+                            <div style={{ width:14, height:14, borderRadius:'50%', background: isLast ? '#6366f1' : 'white',
+                              border:`2px solid ${dotColor}`, boxShadow: isLast ? '0 0 0 3px rgba(99,102,241,.2)' : 'none',
+                              zIndex:1, position:'relative' }} />
+                          </div>
+                          {/* content card */}
+                          <div style={{ flex:1, background: isLast ? 'linear-gradient(135deg,rgba(99,102,241,.08),rgba(59,130,246,.06))' : '#fafafa',
+                            border: `1px solid ${isLast ? 'rgba(99,102,241,.25)' : '#f0f0f0'}`,
+                            borderRadius:14, padding:'14px 18px', marginBottom: isLast ? 0 : 10 }}>
+                            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:6, gap:8 }}>
+                              <div>
+                                <div style={{ fontSize:11, color:'#9ca3af', marginBottom:2 }}>{lvl.range}</div>
+                                <div style={{ fontWeight:800, fontSize:15, color: isLast ? '#4f46e5' : '#1e1b4b', lineHeight:1.2 }}>{lvl.title}</div>
+                              </div>
+                              <div style={{ fontWeight:800, fontSize:14, color: isLast ? '#4f46e5' : '#374151', flexShrink:0, textAlign:'right', lineHeight:1.3 }}>
+                                {lvl.salary}
+                              </div>
+                            </div>
+                            {lvl.desc && (
+                              <div style={{ fontSize:13, color: isLast ? '#4b5563' : '#6b7280', lineHeight:1.6, borderTop:`1px solid ${isLast ? 'rgba(99,102,241,.12)' : '#efefef'}`, paddingTop:8, marginTop:4 }}>
+                                {lvl.desc}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </div>
@@ -1525,65 +1846,110 @@
     }
 
     /* ================================================================
-       COMPONENT: App  (state machine)
+       COMPONENT: App  (state machine + sidebar navigation)
+       page: 'home' | 'quiz' | 'loading' | 'results' | 'about' | 'explore'
     ================================================================ */
     function App() {
-      const [screen,  setScreen]  = useState('intro');   // intro | quiz | loading | results
+      const [page,    setPage]    = useState('home');
+      const [sidebarOpen, setSidebarOpen] = useState(false);
       const [qIdx,    setQIdx]    = useState(0);
       const [answers, setAnswers] = useState([]);
       const [results, setResults] = useState(null);
       const [userVec, setUserVec] = useState(null);
-      const [qKey,    setQKey]    = useState(0);         // forces QuizQuestion re-mount
+      const [qKey,    setQKey]    = useState(0);
 
-      const handleStart = () => {
-        setQIdx(0); setAnswers([]); setResults(null); setUserVec(null); setQKey(0);
-        setScreen('quiz');
+      const navigate = (dest) => {
+        setSidebarOpen(false);
+        if (dest === 'quiz') {
+          setQIdx(0); setAnswers([]); setResults(null); setUserVec(null); setQKey(0);
+        }
+        setPage(dest);
       };
 
       const handleAnswer = (aIdx) => {
         const newAnswers = [...answers, { qId: QUESTIONS[qIdx].id, aIdx }];
         setAnswers(newAnswers);
-
         if (qIdx + 1 < QUESTIONS.length) {
           setQKey(k => k + 1);
           setQIdx(i => i + 1);
         } else {
-          setScreen('loading');
+          setPage('loading');
           setTimeout(() => {
             const vec = computeUserVector(newAnswers);
             setUserVec(vec);
             setResults(getRankedResults(vec));
-            setScreen('results');
+            setPage('results');
           }, 2700);
         }
       };
 
-      if (screen === 'intro')   return <IntroScreen onStart={handleStart} />;
-      if (screen === 'loading') return <LoadingScreen />;
-      if (screen === 'results') return <ResultsScreen results={results} userVec={userVec} onRestart={handleStart} />;
+      // Quiz and loading screens: full-screen, no sidebar
+      const fullScreen = page === 'quiz' || page === 'loading';
 
-      // quiz
-      return (
+      if (page === 'loading') return <LoadingScreen />;
+
+      if (page === 'quiz') return (
         <div className="min-h-screen flex flex-col relative overflow-hidden"
           style={{ background:'linear-gradient(160deg,#f0f4ff 0%,#e8eeff 60%,#f0f4ff 100%)' }}>
-          <div className="orb" style={{ top:'-10%', right:'-5%',  width:380, height:380, '--c':'rgba(99,102,241,.1)' }} />
-          <div className="orb" style={{ bottom:'-10%', left:'-5%', width:340, height:340, '--c':'rgba(59,130,246,.08)' }} />
-
-          {/* progress bar */}
-          <div className="relative z-10 px-5 sm:px-8 pt-8 pb-5" style={{ maxWidth:660, margin:'0 auto', width:'100%' }}>
+          <div className="orb" style={{ top:'-10%', right:'-5%',  width:380, height:380, '--c':'rgba(99,102,241,.12)' }} />
+          <div className="orb" style={{ bottom:'-10%', left:'-5%', width:340, height:340, '--c':'rgba(59,130,246,.09)' }} />
+          {/* back to home */}
+          <button onClick={() => navigate('home')}
+            style={{ position:'absolute', top:16, left:16, zIndex:10, background:'white', border:'1px solid #e5e7eb',
+              borderRadius:10, padding:'8px 14px', fontSize:13, color:'#6366f1', fontWeight:600, cursor:'pointer',
+              boxShadow:'0 2px 8px rgba(99,102,241,.12)' }}>
+            ← Home
+          </button>
+          <div className="relative z-10 px-5 sm:px-8 pt-16 pb-5" style={{ maxWidth:660, margin:'0 auto', width:'100%' }}>
             <ProgressBar current={qIdx + 1} total={QUESTIONS.length} />
           </div>
-
-          {/* question area — takes up remaining space, vertically centered */}
           <div className="relative z-10 flex-1 flex items-start sm:items-center justify-center px-4 pt-2 pb-10 overflow-hidden">
             <QuizQuestion key={qKey} question={QUESTIONS[qIdx]} onAnswer={handleAnswer} />
           </div>
         </div>
       );
+
+      // Pages with sidebar layout
+      const sidebarPage = page === 'results' ? 'results' :
+                          page === 'about' ? 'about' :
+                          page === 'explore' ? 'explore' : 'home';
+
+      return (
+        <div style={{ display:'flex', minHeight:'100vh' }}>
+          {/* sidebar */}
+          <Sidebar page={sidebarPage} navigate={navigate} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+
+          {/* hamburger (mobile) */}
+          <button className="hamburger" style={{ display:'none' }}
+            id="hamburger-btn"
+            onClick={() => setSidebarOpen(o => !o)}>☰</button>
+
+          {/* main content */}
+          <div className="with-sidebar" style={{ flex:1, minWidth:0 }}>
+            {page === 'home'    && <HomePage    onStartQuiz={() => navigate('quiz')} />}
+            {page === 'about'   && <AboutPage />}
+            {page === 'explore' && <ExplorePage />}
+            {page === 'results' && <ResultsScreen results={results} userVec={userVec}
+              onRestart={() => navigate('quiz')} />}
+          </div>
+        </div>
+      );
+    }
+
+    /* Show hamburger on mobile via tiny inline script */
+    function HamburgerInit() {
+      useEffect(() => {
+        const btn = document.getElementById('hamburger-btn');
+        if (btn) btn.style.display = window.innerWidth < 768 ? 'flex' : 'none';
+        const onResize = () => { if (btn) btn.style.display = window.innerWidth < 768 ? 'flex' : 'none'; };
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
+      }, []);
+      return null;
     }
 
     /* mount */
-    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    ReactDOM.createRoot(document.getElementById('root')).render(<><App /><HamburgerInit /></>);
   </script>
 </body>
 </html>
